@@ -47,51 +47,63 @@ class Combinations(object):
     transfer_vol = "0.0"
     trns_str_tmplt = "<SRC_NAME>,<SRC_COL>,<SRC_ROW>,<DEST_NAME>,<DEST_COL>,<DEST_ROW>,<TRS_VOL>\n"
     trns_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume\n"
+    plate_dims = {96: [8,12], 384: [16,24], 1536:[32,48]}
+    plt_format = 384
 
     # TODO: Refactor code so that init does not parse the combinations or mapfile
     #       New flow should be: Init -> Load Map -> Load or Calculate Combinations ->
     #       Set Volume -> Create Transfer File
 
-    def __init__(self, combine_file=None, map_file=None, volume=None):
-        # Raise Exception if one type of file is not supplied
-        if(combine_file is None and map_file is None):
-            raise Exception("Missing Argument: Combinations class must be initialized with combine_file and/or map_file")
-        # Set the transfer volume if a value is supplied
-        if(volume is not None):
-            self.transfer_vol = str(2.5 * round(float(volume)/2.5))
+    def __init__(self, format=384):
         # Set the transfer file header as the first element of the transfer list
         self.transfers.append(self.trns_header)
-        # Load the platemap file data if a filepath was supplied
-        if(map_file is not None):
-            self.load_platemap(map_file)
+        # Set the destination plate format
+        self.plt_format = format
+        # Load the platemap file data if a filepath was supplied - TEMP
+        # if(map_file is not None):
+        #    self.load_platemap(map_file)
+        # Load the combine file data if a filepath was supplied - TEMP
+        # if(map_file is not None):
+        #    self.load_combinations(combine_file)
+        # Set combination list as all possible combinations if a combination matrix
+        # was not supplied and the platemap was supplied 
+        # elif(self.platemap is not None):
+        #    cmpds = [name for name in self.platemap.wells]
+        #    self.clist = self.generate_combinations(cmpds)
+
+    def load_platemap(self, filepath):
+        if(filepath is not None and path.exists(filepath)):
+            self.platemap = Platemap(filepath)
+        return
+
+    def load_combinations(self, combine_file):
         # Load the combination matrix if a filepath was supplied
         #  --> Keep this to support manually curating combinations if all possible 
         #      combinations are not desired
         if(combine_file is not None and path.exists(combine_file)):
-            
             with open(combine_file, 'r') as combine:
                 # Skip the header
                 # TODO: Try to do a Regex match on the first line to determine
                 #       if there is a header at all
                 # next(combine)
                 for line in combine:
-                    
-                    # Expects 3 columns indicating compounds to combine
-                    # TODO: Try to support any number of columns
-                    [cpd1, cpd2, cpd3] = line.strip().split(",")
-                    temp = [cpd1]
-                    if cpd2 not in ["", "-"]:
-                        temp.append(cpd2)
-                    if cpd3 not in ["", "-"]:
-                        temp.append(cpd3)
-                    self.clist.append(temp)
-        # Set combination list as all possible combinations if a combination matrix
-        # was not supplied and the platemap was supplied 
-        elif(self.platemap is not None):
-            cmpds = [name for name in self.platemap.wells]
-            self.clist = self.generate_combinations(cmpds)
+                    # Remove any empty and "-" entries
+                    temp = [c for c in line.strip().split(",") if c not in ["", "-"]]
+                    # Check that all compounds are in the platemap
+                    if(all([(t in self.platemap.wells) for t in temp])):
+                        self.clist.append(temp)
 
-    def generate_combinations(self, compounds):
+    def set_volume(self, volume):
+        if(volume is not None):
+            self.transfer_vol = str(2.5 * round(float(volume)/2.5))
+        return
+
+    def generate_combinations(self):
+        compounds = [name for name in self.platemap.wells]
+        self.clist = self.build_combination_matrix(compounds)
+        return
+
+    def build_combination_matrix(self, compounds):
         combination_list = []
         if(compounds is not None and len(compounds) > 0):
             # TODO: Try to find a way to support any number of compounds in combination
@@ -108,33 +120,37 @@ class Combinations(object):
                         # Add triple combination
                         if(all([set([cmpd, cmpd2, cmpd3]) != set(c) for c in combination_list])):
                             combination_list.append([cmpd, cmpd2, cmpd3])
-        return combination_list    
-    
-    # TODO: Add support for 96 and 1536 well plate formats
+        return combination_list
 
     def add_empty_plate(self):
         wells = dict()
+        # Set plate dimmensions from format
+        [rows, cols] = self.plate_dims[self.plt_format]
         row = 1
-        while row <= 16:
+        while row <= rows:
             col = 1
-            while col <= 24:
-                name = string.ascii_uppercase[row-1] + ("0" + str(col))[-2:]
+            while col <= cols:
+                # Generate well alphanumeric name
+                LETTERS = [l for l in string.ascii_uppercase]
+                LETTERS.extend([l1 + l2 for l1 in string.ascii_uppercase for l2 in string.ascii_uppercase])
+                name = LETTERS[row-1] + ("0" + str(col))[-2:]
+                # Set numeric coordinates
                 coord = [row, col]
+                # Record well
                 wells[name] = {"coord": coord}
                 col += 1
             row += 1
+        # Store wells dictionary
         self.destinations["destination"+str(len(self.destinations)+1)] = wells
         return
 
-    def load_platemap(self, filepath):
-        if(filepath is not None and path.exists(filepath)):
-            self.platemap = Platemap(filepath)
-        return
-
     def find_next_dest(self):
+        # Get the number of empty wells on the plate
         empty_wells = len([w for p in self.destinations for w in self.destinations[p] if "transfers" not in self.destinations[p][w]])
         if(len(self.destinations) == 0 or empty_wells == 0):
+            # Create a new plate if the current one if full
             self.add_empty_plate()
+        # Iterate over plates then wells to find one that has not been used
         for plate in self.destinations:
             for well in self.destinations[plate]:
                 if ("transfers" not in self.destinations[plate][well]):
