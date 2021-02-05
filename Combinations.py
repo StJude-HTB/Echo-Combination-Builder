@@ -1,5 +1,5 @@
 from os import path
-import string, warnings, re
+import string, warnings, re, itertools
 
 
 class Platemap(object):
@@ -50,26 +50,14 @@ class Combinations(object):
     plate_dims = {96: [8,12], 384: [16,24], 1536:[32,48]}
     plt_format = 384
 
-    # TODO: Refactor code so that init does not parse the combinations or mapfile
-    #       New flow should be: Init -> Load Map -> Load or Calculate Combinations ->
-    #       Set Volume -> Create Transfer File
+    # Workflow: Init -> Load Map -> Load or Calculate Combinations ->
+    #           Set Volume -> Create Transfer File
 
     def __init__(self, format=384):
         # Set the transfer file header as the first element of the transfer list
         self.transfers.append(self.trns_header)
         # Set the destination plate format
         self.plt_format = format
-        # Load the platemap file data if a filepath was supplied - TEMP
-        # if(map_file is not None):
-        #    self.load_platemap(map_file)
-        # Load the combine file data if a filepath was supplied - TEMP
-        # if(map_file is not None):
-        #    self.load_combinations(combine_file)
-        # Set combination list as all possible combinations if a combination matrix
-        # was not supplied and the platemap was supplied 
-        # elif(self.platemap is not None):
-        #    cmpds = [name for name in self.platemap.wells]
-        #    self.clist = self.generate_combinations(cmpds)
 
     def load_platemap(self, filepath):
         if(filepath is not None and path.exists(filepath)):
@@ -82,14 +70,10 @@ class Combinations(object):
         #      combinations are not desired
         if(combine_file is not None and path.exists(combine_file)):
             with open(combine_file, 'r') as combine:
-                # Skip the header
-                # TODO: Try to do a Regex match on the first line to determine
-                #       if there is a header at all
-                # next(combine)
                 for line in combine:
                     # Remove any empty and "-" entries
                     temp = [c for c in line.strip().split(",") if c not in ["", "-"]]
-                    # Check that all compounds are in the platemap
+                    # Check that all compounds are in the platemap - this removes the header too
                     if(all([(t in self.platemap.wells) for t in temp])):
                         self.clist.append(temp)
 
@@ -103,23 +87,17 @@ class Combinations(object):
         self.clist = self.build_combination_matrix(compounds)
         return
 
-    def build_combination_matrix(self, compounds):
+    def build_combination_matrix(self, compounds, nmax=3):
         combination_list = []
         if(compounds is not None and len(compounds) > 0):
-            # TODO: Try to find a way to support any number of compounds in combination
-            for cmpd in compounds:
-                # Add single
-                combination_list.append([cmpd])
-                remain1 = [name for name in compounds if name is not cmpd]
-                for cmpd2 in remain1:
-                    # Add double combination
-                    if(all([set([cmpd, cmpd2]) != set(c) for c in combination_list])):
-                        combination_list.append([cmpd, cmpd2])
-                    remain2 = [name for name in remain1 if name is not cmpd2]
-                    for cmpd3 in remain2:
-                        # Add triple combination
-                        if(all([set([cmpd, cmpd2, cmpd3]) != set(c) for c in combination_list])):
-                            combination_list.append([cmpd, cmpd2, cmpd3])
+            n=1
+            while n <= nmax:
+                permutations = itertools.combinations(compounds, n)
+                for p in permutations:
+                    # Filter out permutations that are the same combination
+                    if(all([set(p) != set(c) for c in combination_list])):
+                        combination_list.append(list(p))
+                n += 1
         return combination_list
 
     def add_empty_plate(self):
@@ -167,7 +145,23 @@ class Combinations(object):
             trs_str = trs_str.replace("<TRS_VOL>", str(vol))
             return trs_str
 
-    # TODO: Add support for sorting transfers by source well or by destination well
+    def sort_transfers(self, priority="source"):
+        if(priority not in ["source", "destination"]):
+            raise Exception("Invalid Argument: Argument priority must be one of 'source' or 'destination'")
+        else:
+            t = [self.transfers[0]]
+            x = self.transfers[1:]
+            if(priority == "source"):
+                x.sort()
+                t.extend(x)
+            if(priority == "destination"):
+                pattern1 = r'^(source[0-9]+,[0-9]{1,2},[0-9]{1,2},)(destination[0-9]+,[0-9]{1,2},[0-9]{1,2},[0-9\.]+)$'
+                pattern2 = r'^(destination[0-9]+,[0-9]{1,2},[0-9]{1,2},[0-9\.]+) - (source[0-9]+,[0-9]{1,2},[0-9]{1,2},)$'
+                st = [re.sub(pattern1, r'\2 - \1', t) for t in x]
+                st.sort()
+                t.extend([re.sub(pattern2, r'\2\1', t) for t in st])
+            self.transfers = t
+        return
 
     def create_transfers(self):
         if(self.platemap is not None):
@@ -190,11 +184,15 @@ class Combinations(object):
     def print_transfers(self):
         print("\n".join(self.transfers))
 
-    # TODO: Add check for *.csv extension
-
-    def save_transfers(self, saveas):
+    def save_transfers(self, saveas, sort="source"):
+        if(saveas[-4:].lower() != ".csv"):
+            saveas = saveas + ".csv"
+        if(not path.exists(path.dirname(saveas))):
+            raise Exception("Invalid Save Path: The directory " + path.dirname(saveas) + "does not exist")
         if(len(self.transfers) > 1):
             with open(saveas, 'w') as output:
+                if(sort):
+                    self.sort_transfers(sort)
                 output.writelines(self.transfers)
         return
 

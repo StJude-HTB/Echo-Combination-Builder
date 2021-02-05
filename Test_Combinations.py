@@ -128,6 +128,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         return
     
     def test_05_Combinations_build_combination_matrix(self):
+        # Test with defaults
         test = Combinations.Combinations()
         cmpd_list = ["cmpd1", "cmpd2", "cmpd3"]
         combine_list = test.build_combination_matrix(cmpd_list)
@@ -139,6 +140,34 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertIn([cmpd_list[0],cmpd_list[2]], combine_list)
         self.assertIn([cmpd_list[1],cmpd_list[2]], combine_list)
         self.assertIn([cmpd_list[0],cmpd_list[1],cmpd_list[2]], combine_list)
+        # Test with nmax = 2
+        combine_list = test.build_combination_matrix(cmpd_list, 2)
+        self.assertEqual(6, len(combine_list))
+        self.assertIn([cmpd_list[0]], combine_list)
+        self.assertIn([cmpd_list[1]], combine_list)
+        self.assertIn([cmpd_list[2]], combine_list)
+        self.assertIn([cmpd_list[0],cmpd_list[1]], combine_list)
+        self.assertIn([cmpd_list[0],cmpd_list[2]], combine_list)
+        self.assertIn([cmpd_list[1],cmpd_list[2]], combine_list)
+        # Test with nmax = 4
+        cmpd_list = ["cmpd1", "cmpd2", "cmpd3", "cmpd4"]
+        combine_list = test.build_combination_matrix(cmpd_list, 4)
+        self.assertEqual(15, len(combine_list))
+        self.assertIn([cmpd_list[0]], combine_list)
+        self.assertIn([cmpd_list[1]], combine_list)
+        self.assertIn([cmpd_list[2]], combine_list)
+        self.assertIn([cmpd_list[3]], combine_list)
+        self.assertIn([cmpd_list[0],cmpd_list[1]], combine_list)
+        self.assertIn([cmpd_list[0],cmpd_list[2]], combine_list)
+        self.assertIn([cmpd_list[0],cmpd_list[3]], combine_list)
+        self.assertIn([cmpd_list[1],cmpd_list[2]], combine_list)
+        self.assertIn([cmpd_list[1],cmpd_list[3]], combine_list)
+        self.assertIn([cmpd_list[2],cmpd_list[3]], combine_list)
+        self.assertIn([cmpd_list[0],cmpd_list[1],cmpd_list[2]], combine_list)
+        self.assertIn([cmpd_list[0],cmpd_list[1],cmpd_list[3]], combine_list)
+        self.assertIn([cmpd_list[0],cmpd_list[2],cmpd_list[3]], combine_list)
+        self.assertIn([cmpd_list[1],cmpd_list[2],cmpd_list[3]], combine_list)
+        self.assertIn([cmpd_list[0],cmpd_list[1],cmpd_list[2],cmpd_list[3]], combine_list)
         return
     
     def test_06_Combinations_generate_combinations(self):
@@ -148,7 +177,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(7, len(test.clist))
         return
 
-    def test_09_Combinations_add_empty_plate(self):
+    def test_07_Combinations_add_empty_plate(self):
         test = Combinations.Combinations()
         self.assertEqual(0, len(test.destinations))
         # Use default format -> 384
@@ -207,7 +236,7 @@ class Combinations_TestingMethods(unittest.TestCase):
             self.assertEqual(2, len(well['coord']))
         return
     
-    def test_10_Combinations_find_next_dest(self):
+    def test_08_Combinations_find_next_dest(self):
         test = Combinations.Combinations()
         self.assertEqual(0, len(test.destinations))
         next_well = test.find_next_dest()
@@ -223,7 +252,7 @@ class Combinations_TestingMethods(unittest.TestCase):
             self.assertNotEqual(prev_well, next_well[1])
         return
     
-    def test_11_Combinations_format_transfer(self):
+    def test_09_Combinations_format_transfer(self):
         test = Combinations.Combinations()
         # Test 1
         test_str = test.format_transfer("Source1", "1", "1", "Destination1", "1", "1", "100")
@@ -239,7 +268,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(expected_str, test_str)
         return
 
-    def test_12_Combinations_create_transfers(self):
+    def test_10_Combinations_create_transfers(self):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
@@ -255,8 +284,51 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(13, len(test.transfers))
         self.assertEqual(377, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
         return
+    
+    def test_11_Combinations_sort_transfers(self):
+        test = Combinations.Combinations()
+        # Load platemap
+        self.assertIsNone(test.platemap)
+        test.load_platemap(self.mapfile)
+        self.assertIsNotNone(test.platemap)
+        # Set up combinations
+        self.assertEqual(0, len(test.clist))
+        test.generate_combinations()
+        self.assertEqual(7, len(test.clist))
+        # Create the transfer list
+        self.assertEqual(1, len(test.transfers))
+        test.create_transfers()
+        self.assertEqual(13, len(test.transfers))
+        # Check that they are not sorted
+        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
+        self.assertEqual(test.transfers[2], "source1,2,1,destination1,2,1,0.0\n")
+        self.assertEqual(test.transfers[3], "source1,3,1,destination1,3,1,0.0\n")
+        self.assertEqual(test.transfers[11], "source1,2,1,destination1,7,1,0.0\n")
+        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
+        # Sort by source -> default
+        test.sort_transfers()
+        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
+        self.assertEqual(test.transfers[2], "source1,1,1,destination1,4,1,0.0\n")
+        self.assertEqual(test.transfers[3], "source1,1,1,destination1,5,1,0.0\n")
+        self.assertEqual(test.transfers[11], "source1,3,1,destination1,6,1,0.0\n")
+        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
+        # Sort by destination
+        test.sort_transfers("destination")
+        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
+        self.assertEqual(test.transfers[2], "source1,2,1,destination1,2,1,0.0\n")
+        self.assertEqual(test.transfers[3], "source1,3,1,destination1,3,1,0.0\n")
+        self.assertEqual(test.transfers[11], "source1,2,1,destination1,7,1,0.0\n")
+        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
+        # Sort by source explicitly
+        test.sort_transfers("source")
+        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
+        self.assertEqual(test.transfers[2], "source1,1,1,destination1,4,1,0.0\n")
+        self.assertEqual(test.transfers[3], "source1,1,1,destination1,5,1,0.0\n")
+        self.assertEqual(test.transfers[11], "source1,3,1,destination1,6,1,0.0\n")
+        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
+        return
 
-    def test_13_Combinations_print_transfers(self):
+    def test_12_Combinations_print_transfers(self):
         # This test is based on:
         # https://stackoverflow.com/questions/33767627/python-write-unittest-for-console-print
         test = Combinations.Combinations()
@@ -280,11 +352,11 @@ class Combinations_TestingMethods(unittest.TestCase):
         # Reset the stdout
         sys.stdout = sys.__stdout__
         self.assertIn("source1,1,1,destination1,1,1,0.0", capturedOutput.getvalue())
-        self.assertIn("source1,2,1,destination1,3,1,0.0", capturedOutput.getvalue())
+        self.assertIn("source1,2,1,destination1,2,1,0.0", capturedOutput.getvalue())
         self.assertIn("source1,3,1,destination1,7,1,0.0", capturedOutput.getvalue())
         return
 
-    def test_14_Combinations_save_transfers(self):
+    def test_13_Combinations_save_transfers(self):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
@@ -315,6 +387,15 @@ class Combinations_TestingMethods(unittest.TestCase):
                 line = csv.readline()
         # Delete test file
         os.remove(filepath)
+        # Test with a filepath that does not have an extension
+        # Save the file
+        test.save_transfers(os.path.join(self.wrkdir, "TestCSV"))
+        self.assertTrue(os.path.exists(filepath))
+        # Delete test file
+        os.remove(filepath)
+        # Test with a bogus path
+        self.assertRaises(Exception, test.save_transfers, os.path.join("C:\\Some\\bogus\\path", "TestCSV"))
         return
+
 
 
