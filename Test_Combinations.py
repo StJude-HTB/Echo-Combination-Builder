@@ -10,6 +10,7 @@ class Platemap_TestingMethods(unittest.TestCase):
     def setUp(self):
         self.mapfile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\Platemap.csv"
         self.mosaicfile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\PlateSummary.txt"
+        self.echofile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\ECHO CSV.csv"
         warnings.simplefilter('ignore', category=UserWarning)
         return
 
@@ -21,7 +22,7 @@ class Platemap_TestingMethods(unittest.TestCase):
         self.assertEqual(0, 0)
         return
     
-    def test_01_Platemap_Initializes_with_defaults(self):
+    def test_01_Platemap_Initializes_with_basic_file(self):
         test = Combinations.Platemap(self.mapfile)
         self.assertIsNotNone(test.wells)
         self.assertEqual(3, len(test.wells))
@@ -33,20 +34,8 @@ class Platemap_TestingMethods(unittest.TestCase):
         self.assertEqual(2, len(test.wells["Topotecan"]))
         return
     
-    def test_02_Platemap_Initializes_as_basic(self):
-        test = Combinations.Platemap(self.mapfile, file_format="basic")
-        self.assertIsNotNone(test.wells)
-        self.assertEqual(3, len(test.wells))
-        self.assertIn("Dasatinib", test.wells)
-        self.assertIn("Bortezomib", test.wells)
-        self.assertIn("Topotecan", test.wells)
-        self.assertEqual(2, len(test.wells["Dasatinib"]))
-        self.assertEqual(2, len(test.wells["Bortezomib"]))
-        self.assertEqual(2, len(test.wells["Topotecan"]))
-        return
-    
-    def test_03_Platemap_Initializes_as_mosaic(self):
-        test = Combinations.Platemap(self.mosaicfile, file_format="mosaic")
+    def test_02_Platemap_Initializes_with_mosaic_file(self):
+        test = Combinations.Platemap(self.mosaicfile)
         self.assertIsNotNone(test.wells)
         self.assertEqual(16, len(test.wells))
         self.assertIn("SJ000312343-2", test.wells)
@@ -58,7 +47,11 @@ class Platemap_TestingMethods(unittest.TestCase):
         return
     
     def test_03_Platemap_Initializes_raises_warning(self):
-        self.assertWarns(UserWarning, Combinations.Platemap, self.mosaicfile, file_format="mosaic")
+        self.assertWarns(UserWarning, Combinations.Platemap, self.mosaicfile)
+        return
+    
+    def test_03_Platemap_Initializes_raises_exception(self):
+        self.assertRaises(Exception, Combinations.Platemap, self.echofile)
         return
     
 

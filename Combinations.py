@@ -1,30 +1,39 @@
 from os import path
-import string, warnings
+import string, warnings, re
 
 
 class Platemap(object):
     wells = dict()
 
-    def __init__(self, filepath, file_format="basic"):
+    def __init__(self, filepath):
         raise_warning = False
-        # Validate file_format
-        if(file_format not in ["basic", "mosaic"]):
-            raise Exception("Argument Error: Argument file_format must be one of 'basic' or 'mosaic'")
+        basic_pattern = r'^([a-zA-Z0-9-_ ]+),([0-9]{1,2}),([0-9]{1,2})$'
+        mosaic_pattern = r'\s(SJ[0-9-]+)\s([A-Z]+[0-9]{1,2})\s'
         # Import the plate map
         if(path.exists(filepath)):
             with open(filepath, 'r') as map_file:
-                next(map_file)
                 for line in map_file:
-                    if(file_format == "basic"):
-                        [cmpd, row, col] = line.strip().split(",")
-                    if(file_format == "mosaic"):
-                        [cmpd, well] = line.strip().split("\t")[7:9]
+                    basic = re.search(basic_pattern, line)
+                    mosaic = re.search(mosaic_pattern, line)
+                    if((not basic) and (not mosaic)):
+                        continue
+                    if(basic):
+                        # Expects 3 columns: Compound ID, Row, Column
+                        [cmpd, row, col] = [basic.group(1), basic.group(2), basic.group(3)]
+                    if(mosaic):
+                        # Expects > 9 columns: Compound ID (8), Well Alpha (9)
+                        # Parses Well Alpha to numeric Row/Column
+                        [cmpd, well] = [mosaic.group(1), mosaic.group(2)]
                         row = str(string.ascii_uppercase.find(well[0])+1)
                         col = well[1:3]
+                    # Ensure that this Compound ID has not already been recorded
                     if(cmpd not in self.wells):
                         self.wells[cmpd] = [row, col]
+                    # Raise a warning about duplicates if it has
                     else:
                         raise_warning = True
+            if(len(self.wells) == 0):
+                raise Exception("File Parse Error: File contents could not be parsed")
             if(raise_warning):
                 warnings.warn("Duplicate Compounds Detected: Duplicate compounds were detected in the map file")
         return
@@ -38,6 +47,10 @@ class Combinations(object):
     transfer_vol = "0.0"
     trns_str_tmplt = "<SRC_NAME>,<SRC_COL>,<SRC_ROW>,<DEST_NAME>,<DEST_COL>,<DEST_ROW>,<TRS_VOL>\n"
     trns_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume\n"
+
+    # TODO: Refactor code so that init does not parse the combinations or mapfile
+    #       New flow should be: Init -> Load Map -> Load or Calculate Combinations ->
+    #       Set Volume -> Create Transfer File
 
     def __init__(self, combine_file=None, map_file=None, volume=None):
         # Raise Exception if one type of file is not supplied
@@ -55,9 +68,16 @@ class Combinations(object):
         #  --> Keep this to support manually curating combinations if all possible 
         #      combinations are not desired
         if(combine_file is not None and path.exists(combine_file)):
+            
             with open(combine_file, 'r') as combine:
-                next(combine)
+                # Skip the header
+                # TODO: Try to do a Regex match on the first line to determine
+                #       if there is a header at all
+                # next(combine)
                 for line in combine:
+                    
+                    # Expects 3 columns indicating compounds to combine
+                    # TODO: Try to support any number of columns
                     [cpd1, cpd2, cpd3] = line.strip().split(",")
                     temp = [cpd1]
                     if cpd2 not in ["", "-"]:
@@ -74,6 +94,7 @@ class Combinations(object):
     def generate_combinations(self, compounds):
         combination_list = []
         if(compounds is not None and len(compounds) > 0):
+            # TODO: Try to find a way to support any number of compounds in combination
             for cmpd in compounds:
                 # Add single
                 combination_list.append([cmpd])
@@ -89,6 +110,8 @@ class Combinations(object):
                             combination_list.append([cmpd, cmpd2, cmpd3])
         return combination_list    
     
+    # TODO: Add support for 96 and 1536 well plate formats
+
     def add_empty_plate(self):
         wells = dict()
         row = 1
@@ -128,6 +151,8 @@ class Combinations(object):
             trs_str = trs_str.replace("<TRS_VOL>", str(vol))
             return trs_str
 
+    # TODO: Add support for sorting transfers by source well or by destination well
+
     def create_transfers(self):
         if(self.platemap is not None):
             for combination in self.clist:
@@ -148,7 +173,9 @@ class Combinations(object):
     
     def print_transfers(self):
         print("\n".join(self.transfers))
-                             
+
+    # TODO: Add check for *.csv extension
+
     def save_transfers(self, saveas):
         if(len(self.transfers) > 1):
             with open(saveas, 'w') as output:
