@@ -4,6 +4,7 @@ import string, warnings, re, itertools
 
 class Platemap(object):
     wells = dict()
+    backfill = dict()
 
     def __init__(self, filepath):
         raise_warning = False
@@ -36,6 +37,68 @@ class Platemap(object):
                 raise Exception("File Parse Error: File contents could not be parsed")
             if(raise_warning):
                 warnings.warn("Duplicate Compounds Detected: Duplicate compounds were detected in the map file")
+        return
+    
+    def parse_well_alpha(self, well_alpha):
+        # Take well references and create a list of wells that fill the range
+        well_pattern = r'([a-zA-Z]{1,2})([0-9]{1,2})'
+        pat = re.compile(well_pattern)
+        mtch = pat.match(well_alpha)
+        if(not mtch):
+            raise Exception("Argument Error: Argument 'well_alpha' must be in the format of A01")
+        # Set up letters
+        LETTERS = [l for l in string.ascii_uppercase]
+        LETTERS.extend([l1 + l2 for l1 in string.ascii_uppercase for l2 in string.ascii_uppercase])
+        # Get numeric row, col
+        row = LETTERS.index(mtch.group(1))+1
+        col = int(mtch.group(2))
+        return (well_alpha, [row, col])
+
+    def parse_well_coord(self, well_coord):
+        # Check argument
+        if(len(well_coord) != 2 and all([type(x) is not int for x in well_coord])):
+            raise Exception("Argument Error: Argument 'well_coord' must be list of 2 integers")
+        # Set up letters
+        LETTERS = [l for l in string.ascii_uppercase]
+        LETTERS.extend([l1 + l2 for l1 in string.ascii_uppercase for l2 in string.ascii_uppercase])
+        # Construct well_alpha
+        well_alpha = LETTERS[well_coord[0]-1] + ("0" + str(well_coord[1]))[-2:]
+        return well_alpha
+   
+    def generate_well_range(self, start, stop):
+        st = self.parse_well_alpha(start)
+        ed = self.parse_well_alpha(stop)
+        # Calculate the number of well in the range
+        r_dif = (ed[1][0] - st[1][0]) + 1
+        c_dif = abs(ed[1][1] - st[1][1]) + 1
+        w_dif = r_dif * c_dif
+        print("Number of rows: " + str(r_dif) + " [" + str(st[1][0]) + ":" + str(ed[1][0]) + "]")
+        print("Number of colums: " + str(c_dif))
+        print("Number of wells in range: " + str(w_dif))
+        # Calculate the ranges
+        if(w_dif > 0):
+            # This is the normal condition
+            wells = [(self.parse_well_coord([r, c]), [r,c]) 
+                        for r in range(st[1][0], ed[1][0]+1) 
+                        for c in range(st[1][1], ed[1][1]+1)]
+        elif(w_dif < 0):
+            # This is where the stop is before the start
+            wells = [(self.parse_well_coord([r, c]), [r,c]) 
+                        for r in range(ed[1][0], st[1][0]+1) 
+                        for c in range(ed[1][1], st[1][1]+1)]
+        else:
+            # This is where the stop == start -> one well
+            wells = [(self.parse_well_coord(st[1]), st[1])]
+        return wells
+
+    
+    def set_backfill_wells(self, wells):
+        # Accepts wells in the format of a list of strings
+        if(any([w[1] in [self.wells[c] for c in self.wells] for w in wells])):
+            raise Exception("Well Definition Error: One or more specified backfill wells are compound source wells")
+        for w in set(wells):
+            well_coord = self.parse_well_alpha(w)
+            self.backfill[well_coord[0]] = well_coord[1]
         return
 
 

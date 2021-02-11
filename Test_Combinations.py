@@ -54,6 +54,84 @@ class Platemap_TestingMethods(unittest.TestCase):
         self.assertRaises(Exception, Combinations.Platemap, self.echofile)
         return
     
+    def test_04_Platemap_parse_well_alpha(self):
+        test = Combinations.Platemap(self.mapfile)
+        self.assertIsNotNone(test.wells)
+        # Test the method
+        well = test.parse_well_alpha("A01")
+        self.assertEqual(("A01", [1,1]), well)
+        well = test.parse_well_alpha("A24")
+        self.assertEqual(("A24", [1,24]), well)
+        well = test.parse_well_alpha("P01")
+        self.assertEqual(("P01", [16,1]), well)
+        well = test.parse_well_alpha("P24")
+        self.assertEqual(("P24", [16,24]), well)
+        well = test.parse_well_alpha("I12")
+        self.assertEqual(("I12", [9,12]), well)
+        # Test for exception
+        self.assertRaises(Exception, test.parse_well_alpha, [1,1])
+        return
+
+    def test_05_Platemap_parse_well_range(self):
+        test = Combinations.Platemap(self.mapfile)
+        self.assertIsNotNone(test.wells)
+        # Test the method
+        well = test.parse_well_coord([1,1])
+        self.assertEqual("A01", well)
+        well = test.parse_well_coord([1,24])
+        self.assertEqual("A24", well)
+        well = test.parse_well_coord([16,1])
+        self.assertEqual("P01", well)
+        well = test.parse_well_coord([16,24])
+        self.assertEqual("P24", well)
+        well = test.parse_well_coord([9,12])
+        self.assertEqual("I12", well)
+        # Test for exception
+        self.assertRaises(Exception, test.parse_well_coord, "A01")
+        return
+    
+    def test_06_Platemap_generate_well_range(self):
+        test = Combinations.Platemap(self.mapfile)
+        self.assertIsNotNone(test.wells)
+        # Try something simple
+        wells = test.generate_well_range("A01", "B02")
+        self.assertEqual(4, len(wells))
+        self.assertIn(("A01", [1,1]), wells)
+        self.assertIn(("A02", [1,2]), wells)
+        self.assertIn(("B01", [2,1]), wells)
+        self.assertIn(("B02", [2,2]), wells)
+        # Try something longer
+        wells = test.generate_well_range("A10", "P12")
+        self.assertEqual(16*3, len(wells))
+        self.assertIn(("A10", [1,10]), wells)
+        self.assertIn(("P12", [16,12]), wells)
+        self.assertIn(("D11", [4,11]), wells)
+        self.assertIn(("K12", [11,12]), wells)
+        # Try putting them in backwards
+        wells = test.generate_well_range("P12", "A10")
+        self.assertEqual(16*3, len(wells))
+        self.assertIn(("A10", [1,10]), wells)
+        self.assertIn(("P12", [16,12]), wells)
+        self.assertIn(("D11", [4,11]), wells)
+        self.assertIn(("K12", [11,12]), wells)
+        # Try a single well
+        wells = test.generate_well_range("P12", "P12")
+        self.assertEqual(1, len(wells))
+        self.assertIn(("P12", [16,12]), wells)
+        return
+    
+    def test_07_Platemap_set_backfill_wells(self):
+        test = Combinations.Platemap(self.mapfile)
+        self.assertIsNotNone(test.wells)
+        # Try a short list
+        test.set_backfill_wells(["A01", "A02", "A03"])
+        self.assertIn("A01", test.backfill)
+        self.assertEqual([1,1], test.backfill["A01"])
+        self.assertIn("A02", test.backfill)
+        self.assertEqual([1,2], test.backfill["A02"])
+        self.assertIn("A03", test.backfill)
+        self.assertEqual([1,3], test.backfill["A03"])
+        return
 
 
 
