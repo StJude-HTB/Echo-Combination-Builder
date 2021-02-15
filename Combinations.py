@@ -73,7 +73,7 @@ class Platemap(object):
         c_dif = abs(ed[1][1] - st[1][1]) + 1
         w_dif = r_dif * c_dif
         print("Number of rows: " + str(r_dif) + " [" + str(st[1][0]) + ":" + str(ed[1][0]) + "]")
-        print("Number of colums: " + str(c_dif))
+        print("Number of colums: " + str(c_dif) + " [" + str(st[1][1]) + ":" + str(ed[1][1]) + "]")
         print("Number of wells in range: " + str(w_dif))
         # Calculate the ranges
         if(w_dif > 0):
@@ -96,7 +96,9 @@ class Platemap(object):
         # Accepts wells in the format of a list of strings
         if(any([w[1] in [self.wells[c] for c in self.wells] for w in wells])):
             raise Exception("Well Definition Error: One or more specified backfill wells are compound source wells")
-        for w in set(wells):
+        unq_wells = list(set(wells))
+        unq_wells.sort()
+        for w in unq_wells:
             well_coord = self.parse_well_alpha(w)
             self.backfill[well_coord[0]] = well_coord[1]
         return
@@ -112,6 +114,7 @@ class Combinations(object):
     trns_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume\n"
     plate_dims = {96: [8,12], 384: [16,24], 1536:[32,48]}
     plt_format = 384
+    used_backfills = list()
 
     # Workflow: Init -> Load Map -> Load or Calculate Combinations ->
     #           Set Volume -> Create Transfer File
@@ -196,6 +199,30 @@ class Combinations(object):
             for well in self.destinations[plate]:
                 if ("transfers" not in self.destinations[plate][well]):
                     return [plate, well]
+    
+    def get_next_backfill(self):
+        if(self.platemap.backfill is not None and len(self.platemap.backfill) > 0):
+            # Get the keys of all of the backfill wells in a list
+            backfill_wells = list(self.platemap.backfill.keys())
+            if(self.used_backfills is None or len(self.used_backfills) == 0):
+                # No backfills have been recorded, use the first well
+                self.used_backfills.append(backfill_wells[0])
+                return self.platemap.backfill[backfill_wells[0]]
+            else:
+                # Backfills have been done, get the wells that have not been used
+                unused_well_idx = [backfill_wells.index(w) for w in backfill_wells if w not in self.used_backfills]
+                if(len(unused_well_idx) > 0):
+                    # Use the next well that has not been used yet
+                    next_well_idx = min(unused_well_idx)
+                    next_well = backfill_wells[next_well_idx]
+                else:
+                    # All of the wells have been used, clear the list and start over
+                    self.used_backfills = list()
+                    next_well = backfill_wells[0]
+                self.used_backfills.append(next_well)
+                return self.platemap.backfill[next_well]
+        else:
+            return None    
 
     def format_transfer(self, sname, srow, scol, dname, drow, dcol, vol):
         if(all([sname, scol, srow, dname, dcol, drow, vol])):
@@ -228,6 +255,7 @@ class Combinations(object):
 
     def create_transfers(self):
         if(self.platemap is not None):
+            max_combinations = max([len(x) for x in self.clist])
             for combination in self.clist:
                 [dest_plt, dest_well] = self.find_next_dest()
                 [dest_row, dest_col] = self.destinations[dest_plt][dest_well]['coord']
@@ -237,11 +265,22 @@ class Combinations(object):
                             self.destinations[dest_plt][dest_well]["transfers"] = list()
                         row = self.platemap.wells[compound][0]
                         col = self.platemap.wells[compound][1]
+                        # TODO: Get the source name from someplace else to allow multiple sources
                         src_name = "source1"
                         trans_str = self.format_transfer(src_name, row, col, dest_plt, dest_row, dest_col, self.transfer_vol)
                         if trans_str is not None:
                             self.transfers.append(trans_str)
                             self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
+                if(len(combination) < max_combinations) and (self.platemap.backfill is not None):
+                    for _ in range(0,max_combinations-len(combination)):
+                        well = self.get_next_backfill()
+                        if well is not None:
+                            # TODO: Get the source name from someplace else to allow multiple sources
+                            src_name = "source1"
+                            trans_str = self.format_transfer(src_name, well[0], well[1], dest_plt, dest_row, dest_col, self.transfer_vol)
+                            if trans_str is not None:
+                                self.transfers.append(trans_str)
+                                self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
         return
     
     def print_transfers(self):

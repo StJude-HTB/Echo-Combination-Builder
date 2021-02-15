@@ -12,10 +12,21 @@ class Platemap_TestingMethods(unittest.TestCase):
         self.mosaicfile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\PlateSummary.txt"
         self.echofile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\ECHO CSV.csv"
         warnings.simplefilter('ignore', category=UserWarning)
+
         return
 
     def tearDown(self):
+        # Clear the Platemap object
         Combinations.Platemap.wells = dict()
+        Combinations.Platemap.backfill = dict()
+        # Clear the other Combinations attributes
+        Combinations.Combinations.clist = list()
+        Combinations.Combinations.platemap = None
+        Combinations.Combinations.transfers = list()
+        Combinations.Combinations.destinations = dict()
+        Combinations.Combinations.used_backfills = list()
+        Combinations.Combinations.transfer_vol = "0.0"
+        Combinations.Combinations.plt_format = 384
         return
     
     def test_00_TestEngineStarts(self):
@@ -144,6 +155,10 @@ class Combinations_TestingMethods(unittest.TestCase):
         return
 
     def tearDown(self):
+        # Clear the Platemap object
+        Combinations.Platemap.wells = dict()
+        Combinations.Platemap.backfill = dict()
+        # Clear the other Combinations attributes
         Combinations.Combinations.clist = list()
         Combinations.Combinations.platemap = None
         Combinations.Combinations.transfers = list()
@@ -356,10 +371,20 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(0, len(test.clist))
         test.generate_combinations()
         self.assertEqual(7, len(test.clist))
-        # Create the transfer list
+        # Create the transfer list, without backfills
         self.assertEqual(1, len(test.transfers))
         test.create_transfers()
         self.assertEqual(13, len(test.transfers))
+        self.assertEqual(377, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
+        # Add some backfill wells and repeat with backfills
+        test.transfers = [test.trns_header]
+        test.destinations = dict()
+        backfill_wells = test.platemap.generate_well_range("A21", "P24")
+        test.platemap.set_backfill_wells([x[0] for x in backfill_wells])
+        self.assertEqual(64, len(test.platemap.backfill))
+        test.create_transfers()
+        self.assertEqual(22, len(test.transfers))
+        # Count wells that are not used ()
         self.assertEqual(377, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
         return
     
@@ -369,6 +394,10 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertIsNone(test.platemap)
         test.load_platemap(self.mapfile)
         self.assertIsNotNone(test.platemap)
+        self.assertIsNotNone(test.platemap.wells)
+        self.assertTrue(len(test.platemap.wells) > 0)
+        print(test.platemap.backfill)
+        self.assertFalse(len(test.platemap.backfill) > 0)
         # Set up combinations
         self.assertEqual(0, len(test.clist))
         test.generate_combinations()
