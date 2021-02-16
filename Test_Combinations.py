@@ -82,8 +82,8 @@ class Platemap_TestingMethods(unittest.TestCase):
         # Test for exception
         self.assertRaises(Exception, test.parse_well_alpha, [1,1])
         return
-
-    def test_05_Platemap_parse_well_range(self):
+    
+    def test_05_Platemap_parse_well_coord(self):
         test = Combinations.Platemap(self.mapfile)
         self.assertIsNotNone(test.wells)
         # Test the method
@@ -344,6 +344,42 @@ class Combinations_TestingMethods(unittest.TestCase):
             self.assertEqual("destination1", next_well[0])
             self.assertNotEqual(prev_well, next_well[1])
         return
+    
+    # TODO: Write test for get_next_backfill method
+    def test_09_Combinations_get_next_backfill(self):
+        test = Combinations.Combinations()
+        # Test that method returns None with no platemap set
+        well = test.get_next_backfill()
+        self.assertIsNone(well)
+        # Set a platemap and add a backfill well
+        test.load_platemap(self.mapfile)
+        self.assertEqual(3, len(test.platemap.wells))
+        test.platemap.set_backfill_wells(["P20", "P21", "P22", "P23", "P24"])
+        self.assertEqual(5, len(test.platemap.backfill))
+        well = test.get_next_backfill()
+        self.assertEqual([16,20], well)
+        self.assertTrue("P20" in test.used_backfills)
+        self.assertEqual(1, len(test.used_backfills))
+        # Test that the next well is returned
+        well = test.get_next_backfill()
+        self.assertEqual([16,21], well)
+        self.assertTrue("P21" in test.used_backfills)
+        self.assertEqual(2, len(test.used_backfills))
+        # Test that the next well is returned
+        well = test.get_next_backfill()
+        self.assertEqual([16,22], well)
+        self.assertTrue("P22" in test.used_backfills)
+        self.assertEqual(3, len(test.used_backfills))
+        # Test that the next well is returned
+        well = test.get_next_backfill()
+        self.assertEqual([16,23], well)
+        self.assertTrue("P23" in test.used_backfills)
+        self.assertEqual(4, len(test.used_backfills))
+        # Test that the next well is returned
+        well = test.get_next_backfill()
+        self.assertEqual([16,24], well)
+        self.assertTrue("P24" in test.used_backfills)
+        self.assertEqual(5, len(test.used_backfills))
     
     def test_09_Combinations_format_transfer(self):
         test = Combinations.Combinations()

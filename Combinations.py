@@ -201,7 +201,7 @@ class Combinations(object):
                     return [plate, well]
     
     def get_next_backfill(self):
-        if(self.platemap.backfill is not None and len(self.platemap.backfill) > 0):
+        if(self.platemap and self.platemap.backfill and len(self.platemap.backfill) > 0):
             # Get the keys of all of the backfill wells in a list
             backfill_wells = list(self.platemap.backfill.keys())
             if(self.used_backfills is None or len(self.used_backfills) == 0):
