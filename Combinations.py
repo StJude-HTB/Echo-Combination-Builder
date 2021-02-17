@@ -1,10 +1,11 @@
 from os import path
-import string, warnings, re, itertools
+import string, warnings, re, itertools, os
 
 
 class Platemap(object):
     wells = dict()
     backfill = dict()
+    controls = dict()
 
     def __init__(self, filepath):
         raise_warning = False
@@ -72,9 +73,9 @@ class Platemap(object):
         r_dif = (ed[1][0] - st[1][0]) + 1
         c_dif = abs(ed[1][1] - st[1][1]) + 1
         w_dif = r_dif * c_dif
-        print("Number of rows: " + str(r_dif) + " [" + str(st[1][0]) + ":" + str(ed[1][0]) + "]")
-        print("Number of colums: " + str(c_dif) + " [" + str(st[1][1]) + ":" + str(ed[1][1]) + "]")
-        print("Number of wells in range: " + str(w_dif))
+        # print("Number of rows: " + str(r_dif) + " [" + str(st[1][0]) + ":" + str(ed[1][0]) + "]")
+        # print("Number of colums: " + str(c_dif) + " [" + str(st[1][1]) + ":" + str(ed[1][1]) + "]")
+        # print("Number of wells in range: " + str(w_dif))
         # Calculate the ranges
         if(w_dif > 0):
             # This is the normal condition
@@ -103,6 +104,25 @@ class Platemap(object):
             self.backfill[well_coord[0]] = well_coord[1]
         return
 
+    def set_controls(self, compounds, volume, times_used=16):
+        # Volume can be a list corresponding to the compounds list
+        if(any([x not in self.wells for x in compounds])):
+            raise Exception("Control Compound Error: One or more control compounds specified are not in the mapped wells")
+        if(len(compounds) != len(volume) and len(volume) != 1):
+            raise Exception("Argument Error: Length of 'compounds' must equal length of 'volume' unless 'volume' has a length of 1") 
+        unq_cmpds = list(set(compounds))
+        for cmpd in unq_cmpds:
+            [row, col] = self.wells.pop(cmpd)
+            if(len(volume) == 1):
+                vol = volume[0]
+            else:
+                vol = volume[compounds.index(cmpd)]
+            self.controls[cmpd] = {"location": [row, col], "times_used": times_used, "volume": vol}
+        print(" * Moved " + str(len(self.controls)) + " controls from wells")
+        print(" * Wells now contains " + str(len(self.wells)) + " compounds")
+        return
+            
+
 
 class Combinations(object):
     clist = list()
@@ -115,9 +135,12 @@ class Combinations(object):
     plate_dims = {96: [8,12], 384: [16,24], 1536:[32,48]}
     plt_format = 384
     used_backfills = list()
+    control_wells = dict()
 
-    # Workflow: Init -> Load Map -> Load or Calculate Combinations ->
-    #           Set Volume -> Create Transfer File
+    # Workflow: Init -> Load Map -> Setup Control Compounds -> 
+    #           Reserve Control Wells -> Setup Backfill Wells -> 
+    #           Set Volume -> Load or Calculate Combinations ->  
+    #           Create Transfer File
 
     def __init__(self, format=384):
         # Set the transfer file header as the first element of the transfer list
@@ -128,6 +151,7 @@ class Combinations(object):
     def load_platemap(self, filepath):
         if(filepath is not None and path.exists(filepath)):
             self.platemap = Platemap(filepath)
+            print(" * Loaded " + str(len(self.platemap.wells)) + " mapped wells")
         return
 
     def load_combinations(self, combine_file):
@@ -142,18 +166,30 @@ class Combinations(object):
                     # Check that all compounds are in the platemap - this removes the header too
                     if(all([(t in self.platemap.wells) for t in temp])):
                         self.clist.append(temp)
+            print(" * Loaded " + str(len(self.clist)) + " combinations")
 
     def set_volume(self, volume):
         if(volume is not None):
             self.transfer_vol = str(2.5 * round(float(volume)/2.5))
+            print(" * Set transfer volume to: " + str(self.transfer_vol))
         return
 
-    def generate_combinations(self):
+    def reserve_control_wells(self, wells):
+        # Accepts wells in the format of a list of strings
+        unq_wells = list(set(wells))
+        unq_wells.sort()
+        for w in unq_wells:
+            well_coord = self.platemap.parse_well_alpha(w)
+            self.control_wells[well_coord[0]] = well_coord[1]
+        return
+
+    def generate_combinations(self, nmax=3):
         compounds = [name for name in self.platemap.wells]
-        self.clist = self.build_combination_matrix(compounds)
+        self.clist = self.build_combination_matrix(compounds, nmax)
+        print(" * Saved " + str(len(self.clist)) + " combinations")
         return
 
-    def build_combination_matrix(self, compounds, nmax=3):
+    def build_combination_matrix(self, compounds, nmax):
         combination_list = []
         if(compounds is not None and len(compounds) > 0):
             n=1
@@ -190,14 +226,17 @@ class Combinations(object):
 
     def find_next_dest(self):
         # Get the number of empty wells on the plate
-        empty_wells = len([w for p in self.destinations for w in self.destinations[p] if "transfers" not in self.destinations[p][w]])
+        empty_wells = len([w for p in self.destinations for w in self.destinations[p] 
+                            if "transfers" not in self.destinations[p][w] and 
+                            w not in self.control_wells])
         if(len(self.destinations) == 0 or empty_wells == 0):
             # Create a new plate if the current one if full
             self.add_empty_plate()
         # Iterate over plates then wells to find one that has not been used
         for plate in self.destinations:
             for well in self.destinations[plate]:
-                if ("transfers" not in self.destinations[plate][well]):
+                if ("transfers" not in self.destinations[plate][well] and 
+                    well not in self.control_wells):
                     return [plate, well]
     
     def get_next_backfill(self):
@@ -222,7 +261,38 @@ class Combinations(object):
                 self.used_backfills.append(next_well)
                 return self.platemap.backfill[next_well]
         else:
-            return None    
+            return None   
+    
+    def sort_wells(self, wells, mode):
+        if(mode not in ["column", "row"]):
+            raise Exception("Argument Error: Argument 'mode' must be one of 'column' or 'row'")
+        if(wells is not None and len(wells) > 0):
+            if(mode == "row"):
+                wells.sort()
+            if(mode == "column"):
+                pattern1 = r"([a-zA-Z]{1,2})([0-9]{2})"
+                pattern2 = r"([0-9]{2})([a-zA-Z]{1,2})"
+                st = [re.sub(pattern1, r'\2\1', w) for w in wells]
+                st.sort()
+                wells = [re.sub(pattern2, r'\2\1', w) for w in st]
+            return wells
+
+    def find_next_ctrl(self, fill_mode="column"):
+        # Get the number of empty control wells on the plate
+        empty_wells = len([w for p in self.destinations for w in self.destinations[p] 
+                            if "transfers" not in self.destinations[p][w] and 
+                            w in self.control_wells])
+        if(len(self.destinations) == 0 or empty_wells == 0):
+            # Create a new plate if the current one if full
+            self.add_empty_plate()
+        # Iterate over plates then wells to find one that has not been used
+        for plate in self.destinations:
+            # Sort wells
+            sorted_wells = self.sort_wells(list(self.destinations[plate].keys()), fill_mode)
+            for well in sorted_wells:
+                if ("transfers" not in self.destinations[plate][well] and 
+                    well in self.control_wells):
+                    return [plate, well]
 
     def format_transfer(self, sname, srow, scol, dname, drow, dcol, vol):
         if(all([sname, scol, srow, dname, dcol, drow, vol])):
@@ -242,8 +312,11 @@ class Combinations(object):
             t = [self.transfers[0]]
             x = self.transfers[1:]
             if(priority == "source"):
-                x.sort()
-                t.extend(x)
+                pattern1 = r'^(source[0-9]+,[0-9]{1,2},[0-9]{1,2},)(destination[0-9]+)(,[0-9]{1,2},[0-9]{1,2},[0-9\.]+)$'
+                pattern2 = r'^(destination[0-9]+) - (source[0-9]+,[0-9]{1,2},[0-9]{1,2},)(,[0-9]{1,2},[0-9]{1,2},[0-9\.]+)$'
+                st = [re.sub(pattern1, r'\2 - \1\3', t) for t in x]
+                st.sort()
+                t.extend([re.sub(pattern2, r'\2\1\3', t) for t in st])
             if(priority == "destination"):
                 pattern1 = r'^(source[0-9]+,[0-9]{1,2},[0-9]{1,2},)(destination[0-9]+,[0-9]{1,2},[0-9]{1,2},[0-9\.]+)$'
                 pattern2 = r'^(destination[0-9]+,[0-9]{1,2},[0-9]{1,2},[0-9\.]+) - (source[0-9]+,[0-9]{1,2},[0-9]{1,2},)$'
@@ -281,14 +354,44 @@ class Combinations(object):
                             if trans_str is not None:
                                 self.transfers.append(trans_str)
                                 self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
+            # Set up the control transfers
+            if(self.control_wells is not None and len(self.control_wells) > 0):
+                for compound in self.platemap.controls:
+                    for _ in range(0,self.platemap.controls[compound]["times_used"]):
+                        [dest_plt, dest_well] = self.find_next_ctrl()
+                        [dest_row, dest_col] = self.destinations[dest_plt][dest_well]['coord']
+                        if("transfers" not in self.destinations[dest_plt][dest_well]):
+                                self.destinations[dest_plt][dest_well]["transfers"] = list()
+                        row = self.platemap.controls[compound]["location"][0]
+                        col = self.platemap.controls[compound]["location"][1]
+                        # TODO: Get the source name from someplace else to allow multiple sources
+                        src_name = "source1"
+                        ctl_vol = float(self.platemap.controls[compound]["volume"])
+                        trans_str = self.format_transfer(src_name, row, col, dest_plt, dest_row, dest_col, str(ctl_vol))
+                        if trans_str is not None:
+                            self.transfers.append(trans_str)
+                            self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
+                        if(ctl_vol < max_combinations * float(self.transfer_vol)) and (self.platemap.backfill is not None):
+                            backfill_vol = (max_combinations * float(self.transfer_vol))-ctl_vol
+                            well = self.get_next_backfill()
+                            if well is not None:
+                                # TODO: Get the source name from someplace else to allow multiple sources
+                                src_name = "source1"
+                                trans_str = self.format_transfer(src_name, well[0], well[1], dest_plt, dest_row, dest_col, str(backfill_vol))
+                                if trans_str is not None:
+                                    self.transfers.append(trans_str)
+                                    self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
+            print(" * Saved " + str(len(self.transfers)) + " transfers")
         return
     
     def print_transfers(self):
-        print("\n".join(self.transfers))
+        print("".join(self.transfers))
 
     def save_transfers(self, saveas, sort="source"):
         if(saveas[-4:].lower() != ".csv"):
             saveas = saveas + ".csv"
+        if(not path.dirname(saveas)):
+            saveas = path.join(os.getcwd(), saveas)
         if(not path.exists(path.dirname(saveas))):
             raise Exception("Invalid Save Path: The directory " + path.dirname(saveas) + "does not exist")
         if(len(self.transfers) > 1):
@@ -296,5 +399,7 @@ class Combinations(object):
                 if(sort):
                     self.sort_transfers(sort)
                 output.writelines(self.transfers)
+            if(os.path.exists(saveas)):
+                print(" * Transfer list saved to: " + saveas)
         return
 

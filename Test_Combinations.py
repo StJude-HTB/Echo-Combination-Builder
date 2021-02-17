@@ -19,12 +19,14 @@ class Platemap_TestingMethods(unittest.TestCase):
         # Clear the Platemap object
         Combinations.Platemap.wells = dict()
         Combinations.Platemap.backfill = dict()
+        Combinations.Platemap.controls = dict()
         # Clear the other Combinations attributes
         Combinations.Combinations.clist = list()
         Combinations.Combinations.platemap = None
         Combinations.Combinations.transfers = list()
         Combinations.Combinations.destinations = dict()
         Combinations.Combinations.used_backfills = list()
+        Combinations.Combinations.control_wells = dict()
         Combinations.Combinations.transfer_vol = "0.0"
         Combinations.Combinations.plt_format = 384
         return
@@ -143,7 +145,36 @@ class Platemap_TestingMethods(unittest.TestCase):
         self.assertIn("A03", test.backfill)
         self.assertEqual([1,3], test.backfill["A03"])
         return
-
+    
+    def test_08_Platemap_set_controls(self):
+        test = Combinations.Platemap(self.mosaicfile)
+        self.assertIsNotNone(test.wells)
+        self.assertEqual(16, len(test.wells))
+        # Try adding a couple of compounds to controls
+        controls = ["SJ000285696-8", "SJ000312317-9"]
+        test.set_controls(controls, [50, 82.5])
+        self.assertEqual(2, len(test.controls))
+        self.assertEqual(14, len(test.wells))
+        self.assertIn("SJ000285696-8", test.controls)
+        self.assertIn("location", test.controls["SJ000285696-8"])
+        self.assertEqual(["16","01"], test.controls["SJ000285696-8"]["location"])
+        self.assertIn("times_used", test.controls["SJ000285696-8"])
+        self.assertEqual(16, test.controls["SJ000285696-8"]["times_used"])
+        self.assertIn("volume", test.controls["SJ000285696-8"])
+        self.assertEqual(50, test.controls["SJ000285696-8"]["volume"])
+        self.assertIn("SJ000312317-9", test.controls)
+        self.assertIn("location", test.controls["SJ000312317-9"])
+        self.assertEqual(["15","01"], test.controls["SJ000312317-9"]["location"])
+        self.assertIn("times_used", test.controls["SJ000312317-9"])
+        self.assertEqual(16, test.controls["SJ000312317-9"]["times_used"])
+        self.assertIn("volume", test.controls["SJ000312317-9"])
+        self.assertEqual(82.5, test.controls["SJ000312317-9"]["volume"])
+        # Test that supplying controls not in the wells list raises and exception
+        self.assertRaises(Exception, test.set_controls, ["ABCDEFG"], [50])
+        # Test that supplying different numbers of compounds and volumes raises and exception
+        controls = ["SJ000285696-8", "SJ000312317-9", "SJ000541096-3"]
+        self.assertRaises(Exception, test.set_controls, controls, [50, 82.5])
+        return
 
 
 class Combinations_TestingMethods(unittest.TestCase):
@@ -158,13 +189,16 @@ class Combinations_TestingMethods(unittest.TestCase):
         # Clear the Platemap object
         Combinations.Platemap.wells = dict()
         Combinations.Platemap.backfill = dict()
+        Combinations.Platemap.controls = dict()
         # Clear the other Combinations attributes
         Combinations.Combinations.clist = list()
         Combinations.Combinations.platemap = None
         Combinations.Combinations.transfers = list()
         Combinations.Combinations.destinations = dict()
+        Combinations.Combinations.used_backfills = list()
+        Combinations.Combinations.control_wells = dict()
         Combinations.Combinations.transfer_vol = "0.0"
-        Combinations.Platemap.wells = dict()
+        Combinations.Combinations.plt_format = 384
         return
     
     def test_00_TestEngineStarts(self):
@@ -220,11 +254,33 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual("122.5", test.transfer_vol)
         return
     
-    def test_05_Combinations_build_combination_matrix(self):
-        # Test with defaults
+    def test_05_Combinations_reserve_control_wells(self):
+        test = Combinations.Combinations()
+        test.load_platemap(self.mapfile)
+        # Make a list of wells
+        ctrl_wells = ['A21', 'A22', 'A23', 'A24', 'B21', 'B22', 'B23', 'B24']
+        # Test method
+        self.assertEqual(0, len(test.control_wells))
+        test.reserve_control_wells(ctrl_wells)
+        self.assertEqual(len(ctrl_wells), len(test.control_wells))
+        self.assertEqual([1,21], test.control_wells["A21"])
+        self.assertEqual([1,24], test.control_wells["A24"])
+        self.assertEqual([2,21], test.control_wells["B21"])
+        self.assertEqual([1,24], test.control_wells["A24"])
+        return
+
+    def test_06_Combinations_generate_combinations(self):
+        test = Combinations.Combinations()
+        test.load_platemap(self.mapfile)
+        test.generate_combinations(3)
+        self.assertEqual(7, len(test.clist))
+        return
+
+    def test_07_Combinations_build_combination_matrix(self):
+        # Test with nmax = 3
         test = Combinations.Combinations()
         cmpd_list = ["cmpd1", "cmpd2", "cmpd3"]
-        combine_list = test.build_combination_matrix(cmpd_list)
+        combine_list = test.build_combination_matrix(cmpd_list, 3)
         self.assertEqual(7, len(combine_list))
         self.assertIn([cmpd_list[0]], combine_list)
         self.assertIn([cmpd_list[1]], combine_list)
@@ -263,14 +319,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertIn([cmpd_list[0],cmpd_list[1],cmpd_list[2],cmpd_list[3]], combine_list)
         return
     
-    def test_06_Combinations_generate_combinations(self):
-        test = Combinations.Combinations()
-        test.load_platemap(self.mapfile)
-        test.generate_combinations()
-        self.assertEqual(7, len(test.clist))
-        return
-
-    def test_07_Combinations_add_empty_plate(self):
+    def test_08_Combinations_add_empty_plate(self):
         test = Combinations.Combinations()
         self.assertEqual(0, len(test.destinations))
         # Use default format -> 384
@@ -329,7 +378,7 @@ class Combinations_TestingMethods(unittest.TestCase):
             self.assertEqual(2, len(well['coord']))
         return
     
-    def test_08_Combinations_find_next_dest(self):
+    def test_09_Combinations_find_next_dest(self):
         test = Combinations.Combinations()
         self.assertEqual(0, len(test.destinations))
         next_well = test.find_next_dest()
@@ -345,8 +394,7 @@ class Combinations_TestingMethods(unittest.TestCase):
             self.assertNotEqual(prev_well, next_well[1])
         return
     
-    # TODO: Write test for get_next_backfill method
-    def test_09_Combinations_get_next_backfill(self):
+    def test_10_Combinations_get_next_backfill(self):
         test = Combinations.Combinations()
         # Test that method returns None with no platemap set
         well = test.get_next_backfill()
@@ -380,8 +428,81 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual([16,24], well)
         self.assertTrue("P24" in test.used_backfills)
         self.assertEqual(5, len(test.used_backfills))
+        return
     
-    def test_09_Combinations_format_transfer(self):
+    def test_11_Combinations_sort_wells(self):
+        test = Combinations.Combinations()
+        # Setup a list of wells to test with
+        wells = ['A21', 'A22', 'A23', 'A24', 'B21', 'B22', 'B23', 'B24']
+        # Test column mode first
+        sort = test.sort_wells(wells, "column")
+        column_sorted = ['A21', 'B21', 'A22', 'B22', 'A23', 'B23', 'A24', 'B24']
+        self.assertEqual(column_sorted, sort)
+        # Test row mode next - use column sorted list as input
+        sort = test.sort_wells(column_sorted, "row")
+        self.assertEqual(wells, sort)
+        # Test for exception
+        self.assertRaises(Exception, test.sort_wells, wells, "random")
+        return
+    
+    def test_12_Combinations_find_next_ctrl(self):
+        test = Combinations.Combinations()
+        test.load_platemap(self.mapfile)
+        # Make a list of wells
+        ctrl_wells = ['A21', 'A22', 'A23', 'A24', 'B21', 'B22', 'B23', 'B24']
+        # Test method
+        self.assertEqual(0, len(test.control_wells))
+        test.reserve_control_wells(ctrl_wells)
+        self.assertEqual(len(ctrl_wells), len(test.control_wells))
+        # Use default fill_mode
+        well = test.find_next_ctrl()
+        self.assertEqual(["destination1", "A21"], well)
+        test.destinations["destination1"]["A21"]["transfers"] = ""
+        well = test.find_next_ctrl()
+        self.assertEqual(["destination1", "B21"], well)
+        test.destinations["destination1"]["B21"]["transfers"] = ""
+        well = test.find_next_ctrl()
+        self.assertEqual(["destination1", "A22"], well)
+        test.destinations["destination1"]["A22"]["transfers"] = ""
+        well = test.find_next_ctrl()
+        self.assertEqual(["destination1", "B22"], well)
+        test.destinations["destination1"]["B22"]["transfers"] = ""
+        # Reset
+        test.destinations = dict()
+        # Test with row fill_mode
+        well = test.find_next_ctrl("row")
+        self.assertEqual(["destination1", "A21"], well)
+        test.destinations["destination1"]["A21"]["transfers"] = ""
+        well = test.find_next_ctrl("row")
+        self.assertEqual(["destination1", "A22"], well)
+        test.destinations["destination1"]["A22"]["transfers"] = ""
+        well = test.find_next_ctrl("row")
+        self.assertEqual(["destination1", "A23"], well)
+        test.destinations["destination1"]["A23"]["transfers"] = ""
+        well = test.find_next_ctrl("row")
+        self.assertEqual(["destination1", "A24"], well)
+        test.destinations["destination1"]["A24"]["transfers"] = ""
+        well = test.find_next_ctrl("row")
+        self.assertEqual(["destination1", "B21"], well)
+        test.destinations["destination1"]["B21"]["transfers"] = ""
+        # Reset
+        test.destinations = dict()
+        # Test with column fill_mode
+        well = test.find_next_ctrl("column")
+        self.assertEqual(["destination1", "A21"], well)
+        test.destinations["destination1"]["A21"]["transfers"] = ""
+        well = test.find_next_ctrl("column")
+        self.assertEqual(["destination1", "B21"], well)
+        test.destinations["destination1"]["B21"]["transfers"] = ""
+        well = test.find_next_ctrl("column")
+        self.assertEqual(["destination1", "A22"], well)
+        test.destinations["destination1"]["A22"]["transfers"] = ""
+        well = test.find_next_ctrl("column")
+        self.assertEqual(["destination1", "B22"], well)
+        test.destinations["destination1"]["B22"]["transfers"] = ""
+        return
+
+    def test_13_Combinations_format_transfer(self):
         test = Combinations.Combinations()
         # Test 1
         test_str = test.format_transfer("Source1", "1", "1", "Destination1", "1", "1", "100")
@@ -396,8 +517,78 @@ class Combinations_TestingMethods(unittest.TestCase):
         expected_str = "Source1,3,1,Destination1,1,3,150\n"
         self.assertEqual(expected_str, test_str)
         return
+    
+    def test_14_Combinations_sort_transfers(self):
+        test = Combinations.Combinations()
+        # Load platemap
+        self.assertIsNone(test.platemap)
+        test.load_platemap(self.mapfile)
+        self.assertIsNotNone(test.platemap)
+        self.assertIsNotNone(test.platemap.wells)
+        self.assertTrue(len(test.platemap.wells) > 0)
+        print(test.platemap.backfill)
+        self.assertFalse(len(test.platemap.backfill) > 0)
+        # Set up combinations
+        self.assertEqual(0, len(test.clist))
+        test.generate_combinations()
+        self.assertEqual(7, len(test.clist))
+        # Create the transfer list
+        self.assertEqual(1, len(test.transfers))
+        test.create_transfers()
+        self.assertEqual(13, len(test.transfers))
+        # Add a second group that goes to a second destination
+        d2 = [x.replace("destination1", "destination2") for x in test.transfers if test.trns_header not in x]
+        test.transfers.extend(d2)
+        # Check that they are not sorted
+        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
+        self.assertEqual(test.transfers[2], "source1,2,1,destination1,2,1,0.0\n")
+        self.assertEqual(test.transfers[3], "source1,3,1,destination1,3,1,0.0\n")
+        self.assertEqual(test.transfers[11], "source1,2,1,destination1,7,1,0.0\n")
+        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
+        self.assertEqual(test.transfers[13], "source1,1,1,destination2,1,1,0.0\n")
+        self.assertEqual(test.transfers[14], "source1,2,1,destination2,2,1,0.0\n")
+        self.assertEqual(test.transfers[15], "source1,3,1,destination2,3,1,0.0\n")
+        self.assertEqual(test.transfers[23], "source1,2,1,destination2,7,1,0.0\n")
+        self.assertEqual(test.transfers[24], "source1,3,1,destination2,7,1,0.0\n")
+        # Sort by source -> default
+        test.sort_transfers()
+        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
+        self.assertEqual(test.transfers[2], "source1,1,1,destination1,4,1,0.0\n")
+        self.assertEqual(test.transfers[3], "source1,1,1,destination1,5,1,0.0\n")
+        self.assertEqual(test.transfers[11], "source1,3,1,destination1,6,1,0.0\n")
+        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
+        self.assertEqual(test.transfers[13], "source1,1,1,destination2,1,1,0.0\n")
+        self.assertEqual(test.transfers[14], "source1,1,1,destination2,4,1,0.0\n")
+        self.assertEqual(test.transfers[15], "source1,1,1,destination2,5,1,0.0\n")
+        self.assertEqual(test.transfers[23], "source1,3,1,destination2,6,1,0.0\n")
+        self.assertEqual(test.transfers[24], "source1,3,1,destination2,7,1,0.0\n")
+        # Sort by destination
+        test.sort_transfers("destination")
+        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
+        self.assertEqual(test.transfers[2], "source1,2,1,destination1,2,1,0.0\n")
+        self.assertEqual(test.transfers[3], "source1,3,1,destination1,3,1,0.0\n")
+        self.assertEqual(test.transfers[11], "source1,2,1,destination1,7,1,0.0\n")
+        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
+        self.assertEqual(test.transfers[13], "source1,1,1,destination2,1,1,0.0\n")
+        self.assertEqual(test.transfers[14], "source1,2,1,destination2,2,1,0.0\n")
+        self.assertEqual(test.transfers[15], "source1,3,1,destination2,3,1,0.0\n")
+        self.assertEqual(test.transfers[23], "source1,2,1,destination2,7,1,0.0\n")
+        self.assertEqual(test.transfers[24], "source1,3,1,destination2,7,1,0.0\n")
+        # Sort by source explicitly
+        test.sort_transfers("source")
+        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
+        self.assertEqual(test.transfers[2], "source1,1,1,destination1,4,1,0.0\n")
+        self.assertEqual(test.transfers[3], "source1,1,1,destination1,5,1,0.0\n")
+        self.assertEqual(test.transfers[11], "source1,3,1,destination1,6,1,0.0\n")
+        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
+        self.assertEqual(test.transfers[13], "source1,1,1,destination2,1,1,0.0\n")
+        self.assertEqual(test.transfers[14], "source1,1,1,destination2,4,1,0.0\n")
+        self.assertEqual(test.transfers[15], "source1,1,1,destination2,5,1,0.0\n")
+        self.assertEqual(test.transfers[23], "source1,3,1,destination2,6,1,0.0\n")
+        self.assertEqual(test.transfers[24], "source1,3,1,destination2,7,1,0.0\n")
+        return
 
-    def test_10_Combinations_create_transfers(self):
+    def test_15_Combinations_create_transfers(self):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
@@ -422,56 +613,21 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(22, len(test.transfers))
         # Count wells that are not used ()
         self.assertEqual(377, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
+        # Add some controls and test again
+        test.transfers = [test.trns_header]
+        test.destinations = dict()
+        test.reserve_control_wells(['A21', 'A22', 'A23', 'A24', 'B21', 'B22', 'B23', 'B24'])
+        test.platemap.wells["Control1"] = [1,24]
+        test.platemap.wells["Control2"] = [2,24]
+        test.platemap.set_controls(["Control1", "Control2"], [125], 4)
+        test.set_volume(100)
+        test.create_transfers()
+        self.assertEqual(38, len(test.transfers))
+        # Count wells that are not used ()
+        self.assertEqual(369, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
         return
     
-    def test_11_Combinations_sort_transfers(self):
-        test = Combinations.Combinations()
-        # Load platemap
-        self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
-        self.assertIsNotNone(test.platemap)
-        self.assertIsNotNone(test.platemap.wells)
-        self.assertTrue(len(test.platemap.wells) > 0)
-        print(test.platemap.backfill)
-        self.assertFalse(len(test.platemap.backfill) > 0)
-        # Set up combinations
-        self.assertEqual(0, len(test.clist))
-        test.generate_combinations()
-        self.assertEqual(7, len(test.clist))
-        # Create the transfer list
-        self.assertEqual(1, len(test.transfers))
-        test.create_transfers()
-        self.assertEqual(13, len(test.transfers))
-        # Check that they are not sorted
-        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
-        self.assertEqual(test.transfers[2], "source1,2,1,destination1,2,1,0.0\n")
-        self.assertEqual(test.transfers[3], "source1,3,1,destination1,3,1,0.0\n")
-        self.assertEqual(test.transfers[11], "source1,2,1,destination1,7,1,0.0\n")
-        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
-        # Sort by source -> default
-        test.sort_transfers()
-        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
-        self.assertEqual(test.transfers[2], "source1,1,1,destination1,4,1,0.0\n")
-        self.assertEqual(test.transfers[3], "source1,1,1,destination1,5,1,0.0\n")
-        self.assertEqual(test.transfers[11], "source1,3,1,destination1,6,1,0.0\n")
-        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
-        # Sort by destination
-        test.sort_transfers("destination")
-        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
-        self.assertEqual(test.transfers[2], "source1,2,1,destination1,2,1,0.0\n")
-        self.assertEqual(test.transfers[3], "source1,3,1,destination1,3,1,0.0\n")
-        self.assertEqual(test.transfers[11], "source1,2,1,destination1,7,1,0.0\n")
-        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
-        # Sort by source explicitly
-        test.sort_transfers("source")
-        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0\n")
-        self.assertEqual(test.transfers[2], "source1,1,1,destination1,4,1,0.0\n")
-        self.assertEqual(test.transfers[3], "source1,1,1,destination1,5,1,0.0\n")
-        self.assertEqual(test.transfers[11], "source1,3,1,destination1,6,1,0.0\n")
-        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0\n")
-        return
-
-    def test_12_Combinations_print_transfers(self):
+    def test_16_Combinations_print_transfers(self):
         # This test is based on:
         # https://stackoverflow.com/questions/33767627/python-write-unittest-for-console-print
         test = Combinations.Combinations()
@@ -499,7 +655,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertIn("source1,3,1,destination1,7,1,0.0", capturedOutput.getvalue())
         return
 
-    def test_13_Combinations_save_transfers(self):
+    def test_17_Combinations_save_transfers(self):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
