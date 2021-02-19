@@ -9,7 +9,7 @@ exp = Combine.Combinations()
 
 
 # 2. Load the plate map
-map_filepath = "ExamplePlatemap.txt"
+map_filepath = "Example_Files\\ExamplePlatemap.txt"
 exp.load_platemap(map_filepath)
 
 
@@ -52,6 +52,6 @@ exp.create_transfers()
 
 
 # 6. Save transfer list - Echo formatted CSV file
-save_filepath = "ExampleOutput.csv"
+save_filepath = "Example_Files\\ExampleOutput2.csv"
 exp.save_transfers(save_filepath, "destination")
 

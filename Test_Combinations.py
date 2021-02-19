@@ -70,12 +70,15 @@ class Standalone_Methods_TestingMethods(unittest.TestCase):
 
 
 class Platemap_TestingMethods(unittest.TestCase):
+    
     def setUp(self):
-        self.mapfile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\Platemap.csv"
-        self.mosaicfile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\PlateSummary.txt"
-        self.echofile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\ECHO CSV.csv"
+        self.mapfile = "Test_Files\\Platemap.csv"
+        self.combine_file = "Test_Files\\Combination Template.csv"
+        self.wrkdir = "Test_Files\\Echo Combination Builder"
+        self.mosaicfile = "Test_Files\\PlateSummary.txt"
+        self.mosaicmulti = "Test_Files\\PlateSummary-Multi.txt"
+        self.echofile = "Test_Files\\ECHO CSV.csv"
         warnings.simplefilter('ignore', category=UserWarning)
-
         return
 
     def tearDown(self):
@@ -167,13 +170,15 @@ class Platemap_TestingMethods(unittest.TestCase):
 
 
 class SourcePlates_TestingMethods(unittest.TestCase):
-    def setUp(self):
-        self.mapfile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\Platemap.csv"
-        self.mosaicfile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\PlateSummary.txt"
-        self.mosaicmulti = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\PlateSummary-Multi.txt"
-        self.echofile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\ECHO CSV.csv"
-        warnings.simplefilter('ignore', category=UserWarning)
 
+    def setUp(self):
+        self.mapfile = "Test_Files\\Platemap.csv"
+        self.combine_file = "Test_Files\\Combination Template.csv"
+        self.wrkdir = "Test_Files\\Echo Combination Builder"
+        self.mosaicfile = "Test_Files\\PlateSummary.txt"
+        self.mosaicmulti = "Test_Files\\PlateSummary-Multi.txt"
+        self.echofile = "Test_Files\\ECHO CSV.csv"
+        warnings.simplefilter('ignore', category=UserWarning)
         return
 
     def tearDown(self):
@@ -397,9 +402,18 @@ class SourcePlates_TestingMethods(unittest.TestCase):
 class Combinations_TestingMethods(unittest.TestCase):
    
     def setUp(self):
-        self.mapfile = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\Platemap.csv"
-        self.combine_file = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder\\Combination Template.csv"
-        self.wrkdir = "C:\\Users\\dcurrier\\OneDrive - St. Jude Children's Research Hospital\\Codes\\Python\\Echo Combination Builder"
+        self.mapfile = "Test_Files\\Platemap.csv"
+        self.combine_file = "Test_Files\\Combination Template.csv"
+        self.wrkdir = "Test_Outputs"
+        self.mosaicfile = "Test_Files\\PlateSummary.txt"
+        self.mosaicmulti = "Test_Files\\PlateSummary-Multi.txt"
+        self.echofile = "Test_Files\\ECHO CSV.csv"
+        self.unsorted = "Test_Files\\Test_Output-Unsorted.csv"
+        self.sourcesorted = "Test_Files\\Test_Output-SourceSorted.csv"
+        self.destsorted = "Test_Files\\Test_Output-DestSorted.csv"
+        self.srcsortedlong = "Test_Files\\Test_Output_SrcLong.csv"
+        self.destsortedlong = "Test_Files\\Test_Output_DestLong.csv"
+        warnings.simplefilter('ignore', category=UserWarning)
         return
 
     def tearDown(self):
@@ -412,7 +426,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         # Clear the other Combinations attributes
         Combinations.Combinations.clist = list()
         Combinations.Combinations.platemap = None
-        Combinations.Combinations.transfers = list()
+        Combinations.Combinations.transfers = {"all": list()}
         Combinations.Combinations.destinations = dict()
         Combinations.Combinations.used_backfills = list()
         Combinations.Combinations.control_wells = dict()
@@ -428,7 +442,8 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         self.assertIsNone(test.platemap)
         self.assertEqual(0, len(test.clist))
-        self.assertEqual(1, len(test.transfers))
+        self.assertIn("all", test.transfers)
+        self.assertEqual(1, len(test.transfers["all"]))
         self.assertEqual(0, len(test.destinations))
         self.assertEqual("0.0", test.transfer_vol)
         self.assertEqual(3, len(test.plate_dims))
@@ -742,7 +757,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(expected_str, test_str)
         return
     
-    def test_14_Combinations_sort_transfers(self):
+    def test_14_1_Combinations_sort_transfers(self):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
@@ -755,59 +770,70 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.generate_combinations()
         self.assertEqual(7, len(test.clist))
         # Create the transfer list
-        self.assertEqual(1, len(test.transfers))
+        self.assertEqual(1, len(test.transfers["all"]))
         test.create_transfers()
-        self.assertEqual(13, len(test.transfers))
+        self.assertEqual(13, len(test.transfers["all"]))
         # Add a second group that goes to a second destination
-        d2 = [x.replace("destination1", "destination2") for x in test.transfers if test.trns_header not in x]
-        test.transfers.extend(d2)
+        d2 = [x.replace("destination1", "destination2") for x in test.transfers["all"] if test.trns_header not in x]
+        test.transfers["all"].extend(d2)
         # Check that they are not sorted
-        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[2], "source1,2,1,destination1,2,1,0.0,Bortezomib\n")
-        self.assertEqual(test.transfers[3], "source1,3,1,destination1,3,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[11], "source1,2,1,destination1,7,1,0.0,Bortezomib\n")
-        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[13], "source1,1,1,destination2,1,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[14], "source1,2,1,destination2,2,1,0.0,Bortezomib\n")
-        self.assertEqual(test.transfers[15], "source1,3,1,destination2,3,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[23], "source1,2,1,destination2,7,1,0.0,Bortezomib\n")
-        self.assertEqual(test.transfers[24], "source1,3,1,destination2,7,1,0.0,Topotecan\n")
+        with open(self.unsorted, 'r') as unsorted:
+            for i,line in enumerate(unsorted):
+                self.assertEqual("\n", test.transfers["all"][i][-1])
+                self.assertEqual(line.strip(), test.transfers["all"][i].strip())
         # Sort by source -> default
         test.sort_transfers()
-        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[2], "source1,1,1,destination1,4,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[3], "source1,1,1,destination1,5,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[11], "source1,3,1,destination1,6,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[13], "source1,1,1,destination2,1,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[14], "source1,1,1,destination2,4,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[15], "source1,1,1,destination2,5,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[23], "source1,3,1,destination2,6,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[24], "source1,3,1,destination2,7,1,0.0,Topotecan\n")
+        with open(self.sourcesorted, 'r') as sourcesorted:
+            for i,line in enumerate(sourcesorted):
+                self.assertEqual("\n", test.transfers["all"][i][-1])
+                self.assertEqual(line.strip(), test.transfers["all"][i].strip())
         # Sort by destination
         test.sort_transfers("destination")
-        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[2], "source1,2,1,destination1,2,1,0.0,Bortezomib\n")
-        self.assertEqual(test.transfers[3], "source1,3,1,destination1,3,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[11], "source1,2,1,destination1,7,1,0.0,Bortezomib\n")
-        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[13], "source1,1,1,destination2,1,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[14], "source1,2,1,destination2,2,1,0.0,Bortezomib\n")
-        self.assertEqual(test.transfers[15], "source1,3,1,destination2,3,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[23], "source1,2,1,destination2,7,1,0.0,Bortezomib\n")
-        self.assertEqual(test.transfers[24], "source1,3,1,destination2,7,1,0.0,Topotecan\n")
+        with open(self.destsorted, 'r') as destsorted:
+            for i,line in enumerate(destsorted):
+                self.assertEqual("\n", test.transfers["all"][i][-1])
+                self.assertEqual(line.strip(), test.transfers["all"][i].strip())
         # Sort by source explicitly
         test.sort_transfers("source")
-        self.assertEqual(test.transfers[1], "source1,1,1,destination1,1,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[2], "source1,1,1,destination1,4,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[3], "source1,1,1,destination1,5,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[11], "source1,3,1,destination1,6,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[12], "source1,3,1,destination1,7,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[13], "source1,1,1,destination2,1,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[14], "source1,1,1,destination2,4,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[15], "source1,1,1,destination2,5,1,0.0,Dasatinib\n")
-        self.assertEqual(test.transfers[23], "source1,3,1,destination2,6,1,0.0,Topotecan\n")
-        self.assertEqual(test.transfers[24], "source1,3,1,destination2,7,1,0.0,Topotecan\n")
+        with open(self.sourcesorted, 'r') as sourcesorted:
+            for i,line in enumerate(sourcesorted):
+                self.assertEqual("\n", test.transfers["all"][i][-1])
+                self.assertEqual(line.strip(), test.transfers["all"][i].strip())
+        return
+    
+    def test_14_2_Combinations_sort_transfers(self):
+        test = Combinations.Combinations()
+        # Load platemap
+        self.assertIsNone(test.platemap)
+        test.load_platemap(self.mosaicfile)
+        self.assertIsNotNone(test.platemap)
+        self.assertTrue(len(test.platemap.get_all_compounds()) > 0)
+        # Set some backfill wells
+        wells = [x[0] for x in Combinations.generate_well_range("A21", "P24")]
+        test.platemap.plates["E3P00000776"].set_backfill_wells(wells)
+        self.assertTrue(test.platemap.has_backfills())
+        # Set up combinations
+        self.assertEqual(0, len(test.clist))
+        test.generate_combinations()
+        self.assertEqual(696, len(test.clist))
+        # Set a volume
+        test.set_volume(100)
+        # Create the transfer list
+        self.assertEqual(1, len(test.transfers["all"]))
+        test.create_transfers()
+        self.assertEqual(2073, len(test.transfers["all"]))
+        # Test default sorting
+        test.sort_transfers()
+        with open(self.srcsortedlong, 'r') as srcsortedlong:
+            for i,line in enumerate(srcsortedlong):
+                self.assertEqual("\n", test.transfers["all"][i][-1])
+                self.assertEqual(line.strip(), test.transfers["all"][i].strip())
+        # Test destination sorting
+        test.sort_transfers("destination")
+        with open(self.destsortedlong, 'r') as destsortedlong:
+            for i,line in enumerate(destsortedlong):
+                self.assertEqual("\n", test.transfers["all"][i][-1])
+                self.assertEqual(line.strip(), test.transfers["all"][i].strip())
         return
 
     def test_15_Combinations_create_transfers(self):
@@ -821,22 +847,22 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.generate_combinations()
         self.assertEqual(7, len(test.clist))
         # Create the transfer list, without backfills
-        self.assertEqual(1, len(test.transfers))
+        self.assertEqual(1, len(test.transfers["all"]))
         test.create_transfers()
-        self.assertEqual(13, len(test.transfers))
+        self.assertEqual(13, len(test.transfers["all"]))
         self.assertEqual(377, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
         # Add some backfill wells and repeat with backfills
-        test.transfers = [test.trns_header]
+        test.transfers["all"] = [test.trns_header]
         test.destinations = dict()
         backfill_wells = Combinations.generate_well_range("A21", "P24")
         test.platemap.plates["source1"].set_backfill_wells([x[0] for x in backfill_wells])
         self.assertEqual(64, len(test.platemap.get_backfill_wells()))
         test.create_transfers()
-        self.assertEqual(19, len(test.transfers))
+        self.assertEqual(19, len(test.transfers["all"]))
         # Count wells that are not used ()
         self.assertEqual(377, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
         # Add some controls and test again
-        test.transfers = [test.trns_header]
+        test.transfers["all"] = [test.trns_header]
         test.destinations = dict()
         test.reserve_control_wells(['A21', 'A22', 'A23', 'A24', 'B21', 'B22', 'B23', 'B24'])
         test.platemap.plates["source1"].wells["Control1"] = {"location": [1,24], "usage": 0}
@@ -844,7 +870,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.platemap.plates["source1"].set_controls(["Control1", "Control2"], [125], 4)
         test.set_volume(100)
         test.create_transfers()
-        self.assertEqual(35, len(test.transfers))
+        self.assertEqual(35, len(test.transfers["all"]))
         # Count wells that are not used ()
         self.assertEqual(369, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
         return
@@ -862,9 +888,9 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.generate_combinations()
         self.assertEqual(7, len(test.clist))
         # Set up transfers
-        self.assertEqual(1, len(test.transfers))
+        self.assertEqual(1, len(test.transfers["all"]))
         test.create_transfers()
-        self.assertEqual(13, len(test.transfers))
+        self.assertEqual(13, len(test.transfers["all"]))
         # Capture the Output
         capturedOutput = io.StringIO()
         sys.stdout = capturedOutput
@@ -872,9 +898,9 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.print_transfers()
         # Reset the stdout
         sys.stdout = sys.__stdout__
-        self.assertIn("source1,1,1,destination1,1,1,0.0", capturedOutput.getvalue())
-        self.assertIn("source1,2,1,destination1,2,1,0.0", capturedOutput.getvalue())
-        self.assertIn("source1,3,1,destination1,7,1,0.0", capturedOutput.getvalue())
+        self.assertIn("all: source1,1,1,destination1,1,1,0.0", capturedOutput.getvalue())
+        self.assertIn("all: source1,2,1,destination1,2,1,0.0", capturedOutput.getvalue())
+        self.assertIn("all: source1,3,1,destination1,7,1,0.0", capturedOutput.getvalue())
         return
 
     def test_17_Combinations_save_transfers(self):
@@ -888,9 +914,9 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.generate_combinations()
         self.assertEqual(7, len(test.clist))
         # Set up transfers
-        self.assertEqual(1, len(test.transfers))
+        self.assertEqual(1, len(test.transfers["all"]))
         test.create_transfers()
-        self.assertEqual(13, len(test.transfers))
+        self.assertEqual(13, len(test.transfers["all"]))
         # Set an output filepath
         filepath = os.path.join(self.wrkdir, "TestCSV.csv")
         # Save the file
@@ -916,6 +942,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         os.remove(filepath)
         # Test with a bogus path
         self.assertRaises(Exception, test.save_transfers, os.path.join("C:\\Some\\bogus\\path", "TestCSV"))
+        # TODO: Add test for split output mode
         return
 
 

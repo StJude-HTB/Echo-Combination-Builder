@@ -1,9 +1,6 @@
 from os import path
 import string, warnings, re, itertools, os
 
-# TODO: Create a SourcePlates class to hold a list of Platemaps
-#       move the init parsinging of the platemap files to this class
-
 
 def parse_well_alpha(well_alpha):
     # Take well references and create a list of wells that fill the range
@@ -173,7 +170,7 @@ class SourcePlates(object):
 class Combinations(object):
     clist = list()
     platemap = None
-    transfers = list()
+    transfers = {"all": list()}
     destinations = dict()
     transfer_vol = "0.0"
     trns_str_tmplt = "<SRC_NAME>,<SRC_COL>,<SRC_ROW>,<DEST_NAME>,<DEST_COL>,<DEST_ROW>,<TRS_VOL>,<NOTE>\n"
@@ -190,7 +187,7 @@ class Combinations(object):
 
     def __init__(self, format=384):
         # Set the transfer file header as the first element of the transfer list
-        self.transfers.append(self.trns_header)
+        self.transfers["all"].append(self.trns_header)
         # Set the destination plate format
         self.plt_format = format
 
@@ -342,27 +339,40 @@ class Combinations(object):
             trs_str = trs_str.replace("<NOTE>", str(note))
             return trs_str
 
-    # TODO: Fix sorting, it is still not working right.  Order should be by source well, 
-    #       but transfers to different destinations should be grouped
-    def sort_transfers(self, priority="source"):
+    def sort_transfers(self, priority="source", split=False):
         if(priority not in ["source", "destination"]):
             raise Exception("Invalid Argument: Argument priority must be one of 'source' or 'destination'")
         else:
-            t = [self.transfers[0]]
-            x = self.transfers[1:]
-            if(priority == "source"):
-                pattern1 = r'^(source[0-9]+)(,[0-9]{1,2},[0-9]{1,2},)(destination[0-9]+)(,[0-9]{1,2},[0-9]{1,2},[0-9\.]+)$'
-                pattern2 = r'^(source[0-9]+)-(destination[0-9]+)-(,[0-9]{1,2},[0-9]{1,2},)(,[0-9]{1,2},[0-9]{1,2},[0-9\.]+)$'
-                st = [re.sub(pattern1, r'\1-\2-\2\4', t) for t in x]
-                st.sort()
-                t.extend([re.sub(pattern2, r'\1\3\2\4', t) for t in st])
-            if(priority == "destination"):
-                pattern1 = r'^(source[0-9]+)(,[0-9]{1,2},[0-9]{1,2},)(destination[0-9]+)(,[0-9]{1,2},[0-9]{1,2},[0-9\.]+)$'
-                pattern2 = r'^(destination[0-9]+)-(source[0-9]+)-(,[0-9]{1,2},[0-9]{1,2},[0-9\.]+)-(,[0-9]{1,2},[0-9]{1,2},)$'
-                st = [re.sub(pattern1, r'\3-\1-\4\2', t) for t in x]
-                st.sort()
-                t.extend([re.sub(pattern2, r'\2\4\1\3', t) for t in st])
-            self.transfers = t
+            n = [self.transfers["all"][0]]
+            x = self.transfers["all"][1:]
+            match_pattern1 = re.compile(r'^(?P<sn>[a-zA-Z0-9_-]+),(?P<sr>[0-9]{1,2}),(?P<sc>[0-9]{1,2}),(?P<dn>[a-zA-Z0-9_-]+),(?P<dr>[0-9]{1,2}),(?P<dc>[0-9]{1,2}),(?P<tv>[0-9\.]+),(?P<tn>.+)$')
+            sorting_dict = dict()
+            g = list()
+            for t in x:
+                m = match_pattern1.match(t)
+                if(m):
+                    d = m.groupdict()
+                    if(priority == "source"):
+                        s = d["sn"] + d["dn"] + ("0" + d["sr"])[-2:] + ("0" + d["sc"])[-2:] + ("0" + d["dr"])[-2:] + ("0" + d["dc"])[-2:]
+                        sorting_dict[s] = dict()
+                        sorting_dict[s]["transfer"] = t
+                        sorting_dict[s]["group"] = d["sn"] + "-" + d["dn"]
+                    if(priority == "destination"):
+                        s = d["sn"] + d["dn"] + ("0" + d["dr"])[-2:] + ("0" + d["dc"])[-2:] + ("0" + d["sr"])[-2:] + ("0" + d["sc"])[-2:]
+                        sorting_dict[s] = dict()
+                        sorting_dict[s]["transfer"] = t
+                        sorting_dict[s]["group"] = d["sn"] + "-" + d["dn"]
+            refs = list(sorting_dict.keys())
+            refs.sort()
+            [n.append(sorting_dict[k]["transfer"]) for k in refs]
+            if(split):
+                [g.append(sorting_dict[k]["group"]) for k in refs]
+                t = dict()
+                [t.update({i:[n[0]]}) for i in set(g)]
+                [t[g[i-1]].append(a) for i,a in enumerate(n) if i != 0]
+                self.transfers = t
+            else:
+                self.transfers = {"all": n}
         return
 
     def create_transfers(self):
@@ -396,7 +406,7 @@ class Combinations(object):
                         note = loc[1]
                         trans_str = self.format_transfer(src, row, col, dest_plt, dest_row, dest_col, self.transfer_vol, note)
                         if trans_str is not None:
-                            self.transfers.append(trans_str)
+                            self.transfers["all"].append(trans_str)
                             self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
                 # Set up backfills for this well if needed
                 if(len(combination) < max_combinations) and self.platemap.has_backfills():
@@ -409,7 +419,7 @@ class Combinations(object):
                         col = well[2]["location"][1]
                         trans_str = self.format_transfer(src, row, col, dest_plt, dest_row, dest_col, backfill_vol, "Backfill")
                         if trans_str is not None:
-                            self.transfers.append(trans_str)
+                            self.transfers["all"].append(trans_str)
                             self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
             # Set up the control transfers
             if(self.platemap.has_controls()):
@@ -429,7 +439,7 @@ class Combinations(object):
                         note = compound[1]
                         trans_str = self.format_transfer(src, row, col, dest_plt, dest_row, dest_col, str(ctl_vol), note)
                         if trans_str is not None:
-                            self.transfers.append(trans_str)
+                            self.transfers["all"].append(trans_str)
                             self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
                         # Setup a backfill if the control is below the level of combinations
                         if(ctl_vol < max_combinations * float(self.transfer_vol)) and self.platemap.has_backfills():
@@ -442,13 +452,13 @@ class Combinations(object):
                                 col = well[2]["location"][1]
                                 trans_str = self.format_transfer(src, row, col, dest_plt, dest_row, dest_col, backfill_vol, "backfill")
                                 if trans_str is not None:
-                                    self.transfers.append(trans_str)
+                                    self.transfers["all"].append(trans_str)
                                     self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
-            print(" * Saved " + str(len(self.transfers)) + " transfers")
+            print(" * Saved " + str(len(self.transfers["all"])) + " transfers")
         return
     
     def print_transfers(self):
-        print("".join(self.transfers))
+        print("".join(["{0}: {1}".format(i, j) for i in self.transfers for j in self.transfers[i]]))
 
     def save_transfers(self, saveas, sort="source"):
         if(saveas[-4:].lower() != ".csv"):
@@ -457,12 +467,17 @@ class Combinations(object):
             saveas = path.join(os.getcwd(), saveas)
         if(not path.exists(path.dirname(saveas))):
             raise Exception("Invalid Save Path: The directory " + path.dirname(saveas) + "does not exist")
-        if(len(self.transfers) > 1):
-            with open(saveas, 'w') as output:
-                if(sort):
-                    self.sort_transfers(sort)
-                output.writelines(self.transfers)
-            if(os.path.exists(saveas)):
-                print(" * Transfer list saved to: " + saveas)
+        if(len(self.transfers) >= 1):
+            for g in self.transfers:
+                if(g == "all"):
+                    new_saveas = saveas
+                else:
+                    new_saveas = path.join(path.dirname(saveas), ("{0}_{1}".format(g,path.basename(saveas))))
+                with open(new_saveas, 'w') as output:
+                    if(sort):
+                        self.sort_transfers(sort)
+                    output.writelines(self.transfers[g])
+                if(os.path.exists(saveas)):
+                    print(" * Transfer list saved to: " + saveas)
         return
 
