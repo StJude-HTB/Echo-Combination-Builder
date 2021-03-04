@@ -1,8 +1,10 @@
 from os import path
-import string, warnings, re, itertools, os
+import string, warnings, re, itertools, os, math
 
 
 def parse_well_alpha(well_alpha):
+    if(type(well_alpha) is not str):
+        raise Exception("Argument Error: Argument 'well_alpha' must be of type 'str'")
     # Take well references and create a list of wells that fill the range
     well_pattern = r'([a-zA-Z]{1,2})([0-9]{1,2})'
     pat = re.compile(well_pattern)
@@ -39,12 +41,12 @@ def generate_well_range(start, stop):
     # print("Number of colums: " + str(c_dif) + " [" + str(st[1][1]) + ":" + str(ed[1][1]) + "]")
     # print("Number of wells in range: " + str(w_dif))
     # Calculate the ranges
-    if(w_dif > 0):
+    if(w_dif > 1):
         # This is the normal condition
         wells = [(parse_well_coord([r, c]), [r,c]) 
                     for r in range(st[1][0], ed[1][0]+1) 
                     for c in range(st[1][1], ed[1][1]+1)]
-    elif(w_dif < 0):
+    elif(w_dif < 1):
         # This is where the stop is before the start
         wells = [(parse_well_coord([r, c]), [r,c]) 
                     for r in range(ed[1][0], st[1][0]+1) 
@@ -65,7 +67,7 @@ class Platemap(object):
     
     def set_backfill_wells(self, wells):
         # Accepts wells in the format of a list of strings
-        if(any([w[1] in [self.wells[c] for c in self.wells] for w in wells])):
+        if(any([w in [parse_well_coord(self.wells[c]["location"]) for c in self.wells] for w in wells])):
             raise Exception("Well Definition Error: One or more specified backfill wells are compound source wells")
         unq_wells = list(set(wells))
         unq_wells.sort()
@@ -74,13 +76,12 @@ class Platemap(object):
             self.backfill[well_coord[0]] = {"location": well_coord[1], "usage": 0}
         return
 
-    # TODO: Consider: moving times_used to Combinations class, volume too
     def set_controls(self, compounds, volume, times_used=16):
+        if(len(compounds) != len(volume)) and (len(volume) > 1):
+            raise Exception("Argument Error: Length of 'compounds' must equal length of 'volume' unless 'volume' has a length of 1") 
         # Volume can be a list corresponding to the compounds list
         if(any([x not in self.wells for x in compounds])):
             raise Exception("Control Compound Error: One or more control compounds specified are not in the mapped wells")
-        if(len(compounds) != len(volume) and len(volume) != 1):
-            raise Exception("Argument Error: Length of 'compounds' must equal length of 'volume' unless 'volume' has a length of 1") 
         unq_cmpds = list(set(compounds))
         for cmpd in unq_cmpds:
             well = self.wells.pop(cmpd)
@@ -101,33 +102,38 @@ class SourcePlates(object):
     def __init__(self, filepath):
         self.plates = dict()
         raise_warning = False
-        basic_pattern = r'^([a-zA-Z0-9-_ ]+),([0-9]{1,2}),([0-9]{1,2})$'
-        mosaic_pattern = r'^([a-zA-Z0-9]+)\s.+\s(SJ[0-9-]+)\s([A-Z]+[0-9]{1,2})\s'
+        basic_pattern = re.compile(r'^(?P<id>[a-zA-Z0-9-_ ]+),(?P<row>[0-9]{1,2}),(?P<col>[0-9]{1,2}),?(?P<conc>[0-9]+\.?[0-9]*)?$')
+        mosaic_pattern = re.compile(r'^(?P<bc>[a-zA-Z0-9]+)\s.+\s(?P<id>SJ[0-9-]+)\s(?P<well>[A-Z]+[0-9]{1,2})\s[0-9]+\s(?P<conc>[0-9]+\.?[0-9]*)\s')
         # Import the plate map
         if(path.exists(filepath)):
             with open(filepath, 'r') as map_file:
                 for line in map_file:
-                    basic = re.search(basic_pattern, line)
-                    mosaic = re.search(mosaic_pattern, line)
+                    basic = basic_pattern.match(line)
+                    mosaic = mosaic_pattern.match(line)
                     if((not basic) and (not mosaic)):
                         continue
                     if(basic):
                         # Basic only supports 1 source plate
                         plt = "source1"
+                        d = basic.groupdict()
                         # Expects 3 columns: Compound ID, Row, Column
-                        [cmpd, row, col] = [basic.group(1), int(basic.group(2)), int(basic.group(3))]
+                        [cmpd, row, col, conc] = [d["id"], int(d["row"]), int(d["col"]), d["conc"]]
                     if(mosaic):
                         # Expects > 9 columns: Compound ID (8), Well Alpha (9)
                         # Parses Well Alpha to numeric Row/Column
-                        [plt, cmpd, well] = [mosaic.group(1), mosaic.group(2), mosaic.group(3)]
+                        d = mosaic.groupdict()
+                        [plt, cmpd, well, conc] = [d["bc"], d["id"], d["well"], d["conc"]]
                         row = string.ascii_uppercase.find(well[0])+1
                         col = int(well[1:3])
+                    # Convert Conc to Float
+                    if(conc):
+                        conc = float(conc)
                     # Ensure that the plate is in the list of platemaps
                     if(plt not in self.plates):
                         self.plates[plt] = Platemap()
                     # Ensure that this Compound ID has not already been recorded
                     if(len(self.find(cmpd)) == 0):
-                        self.plates[plt].wells[cmpd] = {"location": [row, col], "usage": 0}
+                        self.plates[plt].wells[cmpd] = {"location": [row, col], "volume": 0.0, "conc": conc, "usage": 0}
                     # Raise a warning about duplicates if it has
                     else:
                         raise_warning = True
@@ -168,17 +174,19 @@ class SourcePlates(object):
 
 
 class Combinations(object):
-    clist = list()
-    platemap = None
-    transfers = {"all": list()}
-    destinations = dict()
-    transfer_vol = "0.0"
+    clist = list()                  # List of all combinations, each element is a list of substances to combine
+    platemap = None                 # Storage of Platemap object
+    transfers = {"all": list()}     # Lists of transfers - defaults to single list in 'all', by sorting with split multiple lists are possible
+    destinations = dict()           # Destination plates keyed on destination plate name
     trns_str_tmplt = "<SRC_NAME>,<SRC_COL>,<SRC_ROW>,<DEST_NAME>,<DEST_COL>,<DEST_ROW>,<TRS_VOL>,<NOTE>\n"
     trns_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume\n"
     plate_dims = {96: [8,12], 384: [16,24], 1536:[32,48]}
-    plt_format = 384
-    used_backfills = list()
-    control_wells = dict()
+    plt_format = 384                # Format of plate - defaults to 384, can also be 96 or 1536
+    used_backfills = list()         # List of backfill wells that have been used - is populated and cleared automatically
+    control_wells = dict()          # Wells to use as controls - keyed on well alpha
+    transfer_vol = 0.0              # Volume of compounds to tranfer, is overidden by compound specific volumes
+    assay_volume = 0.0              # Assay Volume in uL
+    assay_concentrations = dict()   # Assay Concentrations keyed on compound ids - missing compounds will use the global volume
 
     # Workflow: Init -> Load Map -> Setup Control Compounds -> 
     #           Reserve Control Wells -> Setup Backfill Wells -> 
@@ -211,10 +219,64 @@ class Combinations(object):
                         self.clist.append(temp)
             print(" * Loaded " + str(len(self.clist)) + " combinations")
 
-    def set_volume(self, volume):
+    def set_transfer_volume(self, volume=None, file=None):
         if(volume is not None):
-            self.transfer_vol = str(2.5 * round(float(volume)/2.5))
+            self.transfer_vol = 2.5 * round(float(volume)/2.5)
             print(" * Set transfer volume to: " + str(self.transfer_vol))
+        if(file is not None) and (path.exists(file)):
+            with open(file, 'r') as volumes:
+                i = 0
+                # Expects a csv with two columns: Compound ID, Volume to use
+                pattern = re.compile(r'^(?P<id>[a-zA-Z0-9_\-() ]+),(?P<vol>[0-9]+\.?[0-9]+)$')
+                for line in volumes:
+                    match = pattern.match(line)
+                    if(match):
+                        d = match.groupdict()
+                        loc = self.platemap.find(d["id"])
+                        for l in loc:
+                            self.platemap.plates[l[0]].wells[d["id"]]["volume"] = float(d["vol"])
+                        i += 1
+            print(" * Set transfer volume for: " + str(i) + " compounds")
+        return
+    
+    def set_assay_volume(self, volume):
+        self.assay_volume = float(volume)
+        return
+    
+    def conc_unit_conversion(self, conc, unit):
+        if(unit not in ["pM", "nM", "uM", "mM", "M"]):
+            raise Exception("Calculation Error: Concentration units must be one of 'pM', 'nM', 'uM', 'mM', 'M'")
+        unit_conversion = {"M":1, "mM":1000, "uM":1000000, "nM":1000000000, "pM":1000000000000}
+        return float(conc)/unit_conversion[unit]
+
+    def set_assay_concentration(self, conc=None, unit="mM", file=None):
+        if(self.assay_volume <= 0):
+            raise Exception("Calculation Error: Concentrations cannot be set before setting assay volume")
+        if(unit not in ["pM", "nM", "uM", "mM", "M"]):
+            raise Exception("Calculation Error: Concentration units must be one of 'pM', 'nM', 'uM', 'mM', 'M'")
+        if(not self.platemap) or (len(self.platemap.plates) == 0):
+            raise Exception("Calculation Error: Concentrations cannot be set before source plates are loaded")
+        if(conc is not None):
+            adj_conc = self.conc_unit_conversion(conc, unit)
+            [self.assay_concentrations.update({w: adj_conc}) for p in self.platemap.plates for w in self.platemap.plates[p].wells]
+            #[self.platemap.plates[p].wells[w].update({'conc': adj_conc}) for p in self.platemap.plates for w in self.platemap.plates[p].wells]
+            print(" * Set all compound concentrations to: " + str(conc))
+        if(file is not None) and (path.exists(file)):
+            with open(file, 'r') as concs:
+                i = 0
+                # Expects a csv with three columns: Compound ID, Concentration to use, and Concentration unit
+                pattern = re.compile(r'^(?P<id>[a-zA-Z0-9_\-() ]+),(?P<conc>[0-9]+\.?[0-9]+),(?P<unit>[pnum]?[M])$')
+                for line in concs:
+                    match = pattern.match(line)
+                    if(match):
+                        d = match.groupdict()
+                        loc = self.platemap.find(d["id"])
+                        adj_conc = self.conc_unit_conversion(d["conc"], d["unit"])
+                        for l in loc:
+                            self.assay_concentrations.update({d["id"]: adj_conc})
+                            #self.platemap.plates[l[0]].wells[d["id"]]["conc"] = adj_conc
+                        i += 1
+            print(" * Set compound concentrations for: " + str(i) + " compounds")
         return
 
     def reserve_control_wells(self, wells):
@@ -374,14 +436,38 @@ class Combinations(object):
             else:
                 self.transfers = {"all": n}
         return
+    
+    def calculate_transfer_volume(self, stock_conc, assay_conc):
+        if(not stock_conc or not assay_conc) or (float(stock_conc) <= 0 or float(assay_conc) <= 0):
+            raise Exception("Argument Error: Arguments 'stock_conc' and 'assay_conc' bust be greater than 0")
+        if(self.assay_volume <= 0):
+            raise Exception("Calculation Error: Assay Volume must be set before transfer volumes can be calulated from concentrations")
+        vol = float(assay_conc) * float(self.assay_volume) / float(stock_conc)
+        return vol
+    
+    def get_max_volume(self):
+        max_vol = 0.0
+        for comb in self.clist:
+            comb_vol = 0.0
+            for c in comb:
+                if c not in self.assay_concentrations:
+                    comb_vol += self.transfer_vol
+                else:
+                    stock = self.platemap.find(c)[0][2]['conc']
+                    assay = self.assay_concentrations[c]
+                    comb_vol += self.calculate_transfer_volume(stock, assay)
+            if comb_vol > max_vol:
+                max_vol = comb_vol
+        return math.ceil(max_vol)
 
     def create_transfers(self):
         if(self.platemap is not None):
-            max_combinations = max([len(x) for x in self.clist])
+            max_vol = self.get_max_volume()
             for combination in self.clist:
                 [dest_plt, dest_well] = self.find_next_dest()
                 [dest_row, dest_col] = self.destinations[dest_plt][dest_well]['coord']
                 sources = list()
+                running_vol = 0
                 for compound in combination:
                     # Check that the compound is in the source plates
                     if(compound in self.platemap.get_all_compounds()):
@@ -400,17 +486,28 @@ class Combinations(object):
                         row = loc[2]["location"][0]
                         col = loc[2]["location"][1]
                         src = loc[0]
+                        cid = loc[1]
+                        conc = loc[2]["conc"]
                         # Store the source plate
                         sources.append(src)
+                        # Calculate transfer volume
+                        if(cid not in self.assay_concentrations):
+                            # There is no assay concentration for this substance, use global volume
+                            if(self.transfer_vol <= 0):
+                                warnings.warn("Transfer volume used is 0")
+                            vol = self.transfer_vol
+                        elif(cid in self.assay_concentrations):
+                            vol = self.calculate_transfer_volume(conc, self.assay_concentrations[cid])
+                        running_vol += vol
                         # Save the transfer details
                         note = loc[1]
-                        trans_str = self.format_transfer(src, row, col, dest_plt, dest_row, dest_col, self.transfer_vol, note)
+                        trans_str = self.format_transfer(src, row, col, dest_plt, dest_row, dest_col, vol, note)
                         if trans_str is not None:
                             self.transfers["all"].append(trans_str)
                             self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
                 # Set up backfills for this well if needed
-                if(len(combination) < max_combinations) and self.platemap.has_backfills():
-                    backfill_vol = str( 2.5 * round(float((max_combinations-len(combination)) * float(self.transfer_vol))/2.5))
+                if(running_vol < max_vol) and self.platemap.has_backfills():
+                    backfill_vol = str( 2.5 * round(float((max_vol-running_vol))/2.5))
                     # Format of well: (plt, well, {location: [r,c], usage:0})
                     well = self.get_next_backfill()
                     if well is not None:
@@ -442,8 +539,8 @@ class Combinations(object):
                             self.transfers["all"].append(trans_str)
                             self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
                         # Setup a backfill if the control is below the level of combinations
-                        if(ctl_vol < max_combinations * float(self.transfer_vol)) and self.platemap.has_backfills():
-                            backfill_vol = (max_combinations * float(self.transfer_vol))-ctl_vol
+                        if(ctl_vol < max_vol) and self.platemap.has_backfills():
+                            backfill_vol = max_vol-ctl_vol
                             # Format of well: (plt, well, {location: [r,c], usage:0})
                             well = self.get_next_backfill()
                             if well is not None:
@@ -455,12 +552,13 @@ class Combinations(object):
                                     self.transfers["all"].append(trans_str)
                                     self.destinations[dest_plt][dest_well]["transfers"].append(trans_str)
             print(" * Saved " + str(len(self.transfers["all"])) + " transfers")
+            print("    * Maximum substance volume was " + str(max_vol))
         return
     
     def print_transfers(self):
         print("".join(["{0}: {1}".format(i, j) for i in self.transfers for j in self.transfers[i]]))
 
-    def save_transfers(self, saveas, sort="source"):
+    def save_transfers(self, saveas):
         if(saveas[-4:].lower() != ".csv"):
             saveas = saveas + ".csv"
         if(not path.dirname(saveas)):
@@ -474,10 +572,9 @@ class Combinations(object):
                 else:
                     new_saveas = path.join(path.dirname(saveas), ("{0}_{1}".format(g,path.basename(saveas))))
                 with open(new_saveas, 'w') as output:
-                    if(sort):
-                        self.sort_transfers(sort)
                     output.writelines(self.transfers[g])
                 if(os.path.exists(saveas)):
                     print(" * Transfer list saved to: " + saveas)
         return
+
 
