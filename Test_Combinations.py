@@ -1,5 +1,5 @@
 import Combinations
-import unittest, os, json, requests, io, warnings
+import unittest, os, json, requests, io, warnings, re
 import sys
 if sys.version_info[0] < 3:
     import mock
@@ -68,6 +68,32 @@ class Standalone_Methods_TestingMethods(unittest.TestCase):
         self.assertIn(("P12", [16,12]), wells)
         return
 
+    def test_04_conc_unit_conversion(self):
+        # Molar
+        self.assertEqual(3, Combinations.conc_unit_conversion(3, "M"))
+        # Millimolar
+        self.assertEqual(0.003, Combinations.conc_unit_conversion(3, "mM"))
+        self.assertEqual(0.05,  Combinations.conc_unit_conversion(50, "mM"))
+        self.assertEqual(5,  Combinations.conc_unit_conversion(5000, "mM"))
+        self.assertEqual(0.0005,  Combinations.conc_unit_conversion(0.5, "mM"))
+        # Micromolar
+        self.assertEqual(0.000003, Combinations.conc_unit_conversion(3, "uM"))
+        self.assertEqual(0.00005,  Combinations.conc_unit_conversion(50, "uM"))
+        self.assertEqual(0.005,  Combinations.conc_unit_conversion(5000, "uM"))
+        self.assertEqual(0.0000005,  Combinations.conc_unit_conversion(0.5, "uM"))
+        # Nanomolar
+        self.assertEqual(0.000000003, Combinations.conc_unit_conversion(3, "nM"))
+        self.assertEqual(0.00000005,  Combinations.conc_unit_conversion(50, "nM"))
+        self.assertEqual(0.000005,  Combinations.conc_unit_conversion(5000, "nM"))
+        self.assertEqual(0.0000000005,  Combinations.conc_unit_conversion(0.5, "nM"))
+        # Picomolar
+        self.assertEqual(0.000000000003, Combinations.conc_unit_conversion(3, "pM"))
+        self.assertEqual(0.00000000005,  Combinations.conc_unit_conversion(50, "pM"))
+        self.assertEqual(0.000000005,  Combinations.conc_unit_conversion(5000, "pM"))
+        self.assertEqual(0.0000000000005,  Combinations.conc_unit_conversion(0.5, "pM"))
+        # Combinations for exceptions
+        self.assertRaises(Exception, Combinations.conc_unit_conversion, conc=50, unit="mg/ml")
+        return
 
 
 class Platemap_TestingMethods(unittest.TestCase):
@@ -299,16 +325,16 @@ class SourcePlates_TestingMethods(unittest.TestCase):
     def test_07_SourcePlates_find(self):
         test = Combinations.SourcePlates(self.mosaicmulti)
         self.assertIsNotNone(test.plates)
-        test.plates["E3P00000777"].wells["SJ000312343-2"] = {'location':[2,2], 'volume':0.0, 'conc':0.33333333, 'usage':0}
+        test.plates["E3P00000777"].wells["SJ000312343-2"] = {'location':[2,2], 'volume':0.0, 'conc':0.00033333333, 'usage':0}
         self.assertEqual(2, len(test.plates))
         # Test method
         t1 = test.find("SJ000986010-1")
-        self.assertEqual([("E3P00000776", "SJ000986010-1", {'location':[4,1], 'volume':0.0, 'conc':8.667, 'usage':0})], t1)
+        self.assertEqual([("E3P00000776", "SJ000986010-1", {'location':[4,1], 'volume':0.0, 'conc':0.008667, 'usage':0})], t1)
         t2 = test.find("SJ000312363-15")
-        self.assertEqual([("E3P00000776", "SJ000312363-15", {'location':[10,1], 'volume':0.0, 'conc':8.5, 'usage':0})], t2)
+        self.assertEqual([("E3P00000776", "SJ000312363-15", {'location':[10,1], 'volume':0.0, 'conc':0.0085, 'usage':0})], t2)
         t3 = test.find("SJ000312343-2")
-        self.assertEqual([("E3P00000776", "SJ000312343-2", {'location':[1,1], 'volume':0.0, 'conc':10, 'usage':0}),
-                          ("E3P00000777", "SJ000312343-2", {'location':[2,2], 'volume':0.0, 'conc':0.33333333, 'usage':0})], t3)
+        self.assertEqual([("E3P00000776", "SJ000312343-2", {'location':[1,1], 'volume':0.0, 'conc':0.010, 'usage':0}),
+                          ("E3P00000777", "SJ000312343-2", {'location':[2,2], 'volume':0.0, 'conc':0.00033333333, 'usage':0})], t3)
 
     def test_08_SourcePlates_mark_use(self):
         test = Combinations.SourcePlates(self.mapfile)
@@ -976,6 +1002,13 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.create_transfers()
         self.assertEqual(1816, len(test.transfers["all"]))
         self.assertEqual(72, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
+        self.assertEqual(72, len([w for p in test.destinations for w in test.destinations[p] if "mapping" not in test.destinations[p][w]]))
+        for m in [test.destinations[p][w]['mapping'] for p in test.destinations for w in test.destinations[p] 
+                    if "mapping" in test.destinations[p][w] and len(test.destinations[p][w]['mapping']) > 0]:
+            self.assertTrue(len(m) > 0)
+            self.assertTrue(len(m) <= 3)
+            for x in m:
+                self.assertEqual(2, len(x))
         # Add some backfill wells and repeat with backfills
         test.transfers["all"] = [test.trns_header]
         test.destinations = dict()
@@ -983,9 +1016,16 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.platemap.plates["E3P00000776"].set_backfill_wells([x[0] for x in backfill_wells])
         self.assertEqual(64, len(test.platemap.get_backfill_wells()))
         test.create_transfers()
-        self.assertEqual(2512, len(test.transfers["all"]))
+        self.assertEqual(2508, len(test.transfers["all"]))
         # Count wells that are not used ()
         self.assertEqual(72, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
+        self.assertEqual(72, len([w for p in test.destinations for w in test.destinations[p] if "mapping" not in test.destinations[p][w]]))
+        for m in [test.destinations[p][w]['mapping'] for p in test.destinations for w in test.destinations[p] 
+                    if "mapping" in test.destinations[p][w] and len(test.destinations[p][w]['mapping']) > 0]:
+            self.assertTrue(len(m) > 0)
+            self.assertTrue(len(m) <= 3)
+            for x in m:
+                self.assertEqual(2, len(x))
         # Add some controls and test again
         test.transfers["all"] = [test.trns_header]
         test.destinations = dict()
@@ -995,9 +1035,16 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.platemap.plates["E3P00000776"].set_controls(["Control1", "Control2"], [125], 4)
         test.set_transfer_volume(100)
         test.create_transfers()
-        self.assertEqual(2641, len(test.transfers["all"]))
+        self.assertEqual(2645, len(test.transfers["all"]))
         # Count wells that are not used ()
         self.assertEqual(64, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
+        self.assertEqual(72, len([w for p in test.destinations for w in test.destinations[p] if "mapping" not in test.destinations[p][w]]))
+        for m in [test.destinations[p][w]['mapping'] for p in test.destinations for w in test.destinations[p] 
+                    if "mapping" in test.destinations[p][w] and len(test.destinations[p][w]['mapping']) > 0]:
+            self.assertTrue(len(m) > 0)
+            self.assertTrue(len(m) <= 3)
+            for x in m:
+                self.assertEqual(2, len(x))
         return
     
     def test_16_Combinations_print_transfers(self):
@@ -1159,35 +1206,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(50.0, test.assay_volume)
         return
 
-    def test_19_Combinations_conc_unit_conversion(self):
-        test = Combinations.Combinations()
-        # Molar
-        self.assertEqual(3, test.conc_unit_conversion(3, "M"))
-        # Millimolar
-        self.assertEqual(0.003, test.conc_unit_conversion(3, "mM"))
-        self.assertEqual(0.05,  test.conc_unit_conversion(50, "mM"))
-        self.assertEqual(5,  test.conc_unit_conversion(5000, "mM"))
-        self.assertEqual(0.0005,  test.conc_unit_conversion(0.5, "mM"))
-        # Micromolar
-        self.assertEqual(0.000003, test.conc_unit_conversion(3, "uM"))
-        self.assertEqual(0.00005,  test.conc_unit_conversion(50, "uM"))
-        self.assertEqual(0.005,  test.conc_unit_conversion(5000, "uM"))
-        self.assertEqual(0.0000005,  test.conc_unit_conversion(0.5, "uM"))
-        # Nanomolar
-        self.assertEqual(0.000000003, test.conc_unit_conversion(3, "nM"))
-        self.assertEqual(0.00000005,  test.conc_unit_conversion(50, "nM"))
-        self.assertEqual(0.000005,  test.conc_unit_conversion(5000, "nM"))
-        self.assertEqual(0.0000000005,  test.conc_unit_conversion(0.5, "nM"))
-        # Picomolar
-        self.assertEqual(0.000000000003, test.conc_unit_conversion(3, "pM"))
-        self.assertEqual(0.00000000005,  test.conc_unit_conversion(50, "pM"))
-        self.assertEqual(0.000000005,  test.conc_unit_conversion(5000, "pM"))
-        self.assertEqual(0.0000000000005,  test.conc_unit_conversion(0.5, "pM"))
-        # Test for exceptions
-        self.assertRaises(Exception, test.conc_unit_conversion, conc=50, unit="mg/ml")
-        return
-
-    def test_20_Combinations_set_assay_concentrations(self):
+    def test_19_Combinations_set_assay_concentrations(self):
         test = Combinations.Combinations()
         test.load_platemap(self.mapfile)
         test.set_assay_volume(25)
@@ -1218,26 +1237,28 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertRaises(Exception, test.set_assay_concentration, conc=50, unit="mM")
         test.set_assay_volume(25)
         self.assertRaises(Exception, test.set_assay_concentration, conc=50, unit="xyz")
+        self.assertRaises(Exception, test.set_assay_concentration, file=os.path.join("C:\\some\\bogus\\path\\to", "a_file.csv"))
         test.platemap = None
         self.assertRaises(Exception, test.set_assay_concentration, conc=50, unit="mM")
+        
         return
 
-    def test_21_Combinations_calculate_transfer_volume(self):
+    def test_20_Combinations_calculate_transfer_volume(self):
         test = Combinations.Combinations()
         test.set_assay_volume(20)
         # Test 1
         actual = test.calculate_transfer_volume(10, 0.1)
-        self.assertEqual(actual, 0.2)
+        self.assertEqual(200, actual)
         # Test 2
         actual = test.calculate_transfer_volume(10, 10)
-        self.assertEqual(actual, 20)
+        self.assertEqual(20000, actual)
         # Test 3
         actual = test.calculate_transfer_volume(10, 1)
-        self.assertEqual(actual, 2)
+        self.assertEqual(2000, actual)
         # Test 4
         test.set_assay_volume(25)
         actual = test.calculate_transfer_volume(10, 0.00625)
-        self.assertEqual(actual, 0.015625)
+        self.assertEqual(15.0, actual)
         # Test Exceptions
         self.assertRaises(Exception, test.calculate_transfer_volume, 0, 10)
         self.assertRaises(Exception, test.calculate_transfer_volume, 10, 0)
@@ -1247,7 +1268,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertRaises(Exception, test.calculate_transfer_volume, 10, 1)
         return
 
-    def test_22_Combinations_get_max_volume(self):
+    def test_21_Combinations_get_max_volume(self):
         test = Combinations.Combinations()
         test.set_assay_volume(20)
         test.set_transfer_volume(25)
@@ -1255,9 +1276,119 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.generate_combinations(3)
         # Test Method with standard transfer volume
         actual = test.get_max_volume()
-        self.assertEqual(75.0, actual)
+        self.assertEqual(75.0, actual[0])
         # Test Method with assay concentrations
         test.set_assay_concentration(file=self.conctable)
         actual = test.get_max_volume()
-        self.assertEqual(26.0, actual)
+        self.assertEqual("SJ000312343-2,SJ000986010-1,SJ000312371-8", actual[1])
+        self.assertEqual(4207.5, actual[0])
+
+    def test_22_Combinations_create_cmt_header(self):
+        test = Combinations.Combinations()
+        # Load platemap
+        self.assertIsNone(test.platemap)
+        test.load_platemap(self.mapfile)
+        self.assertIsNotNone(test.platemap)
+        # Set a transfer volume
+        test.set_transfer_volume(20)
+        # Set up combinations
+        self.assertEqual(0, len(test.clist))
+        test.generate_combinations()
+        self.assertEqual(7, len(test.clist))
+        # Make the header
+        actual = test.create_cmt_header()
+        self.assertEqual(4, len(actual))
+        self.assertEqual(test.map_header1, actual[0])
+        self.assertEqual("# Combinations: 7 | Default Volume: 20.0nl\n", actual[1])
+        self.assertEqual("# PlateFormat\t16\t24\n", actual[2])
+        self.assertEqual(test.map_header4, actual[3])
+        return
+    
+    def test_23_Combinations_create_cmt_line(self):
+        test = Combinations.Combinations()
+        # Load platemap
+        self.assertIsNone(test.platemap)
+        test.load_platemap(self.mapfile)
+        self.assertIsNotNone(test.platemap)
+        # Set a transfer volume
+        test.set_transfer_volume(20)
+        # Set up combinations
+        self.assertEqual(0, len(test.clist))
+        test.generate_combinations()
+        self.assertEqual(7, len(test.clist))
+        # Set up transfers
+        self.assertEqual(1, len(test.transfers["all"]))
+        test.create_transfers()
+        self.assertEqual(13, len(test.transfers["all"]))
+        self.assertEqual(7, len([test.destinations[p][w] for p in test.destinations for w in test.destinations[p] 
+                                 if "mapping" in test.destinations[p][w]]))
+        # Create a line and test
+        mapping = [["CMPD_ID1", 12.5], ["CMPD_ID2", 15.8], ["CMPD_ID3", 8.2]]
+        actual = test.create_mapping_line(test.map_tmplt, mapping)
+        expected = "<DEST_NAME>\t<ROW>\t<COL>\tCMPD_ID1\t12.5\tCMPD_ID2\t15.8\tCMPD_ID3\t8.2\n"
+        self.assertEqual(expected, actual)
+        # Test with 2 compounds
+        mapping = [["CMPD_ID1", 12.5], ["CMPD_ID2", 15.8]]
+        actual = test.create_mapping_line(test.map_tmplt, mapping)
+        expected = "<DEST_NAME>\t<ROW>\t<COL>\tCMPD_ID1\t12.5\tCMPD_ID2\t15.8\t\t\n"
+        self.assertEqual(expected, actual)
+        # Test with 1 compound
+        mapping = [["CMPD_ID1", 12.5]]
+        actual = test.create_mapping_line(test.map_tmplt, mapping)
+        expected = "<DEST_NAME>\t<ROW>\t<COL>\tCMPD_ID1\t12.5\t\t\t\t\n"
+        self.assertEqual(expected, actual)
+        # Test with loaction information filled in
+        mapping = [["CMPD_ID1", 12.5], ["CMPD_ID2", 15.8], ["CMPD_ID3", 8.2]]
+        line = "<Destination_01>\t12\t3\t<ID1>\t<CONC1>\t<ID2>\t<CONC2>\t<ID3>\t<CONC3>\n"
+        actual = test.create_mapping_line(line, mapping)
+        expected = "<Destination_01>\t12\t3\tCMPD_ID1\t12.5\tCMPD_ID2\t15.8\tCMPD_ID3\t8.2\n"
+        self.assertEqual(expected, actual)
+        # Test for raising an exception
+        self.assertRaises(Exception, test.create_mapping_line, None, mapping)
+        self.assertRaises(Exception, test.create_mapping_line, line, None)
+        return
+    
+    def test_24_Combinations_save_cmt(self):
+        test = Combinations.Combinations()
+        # Load platemap
+        self.assertIsNone(test.platemap)
+        test.load_platemap(self.mapfile)
+        self.assertIsNotNone(test.platemap)
+        # Set a transfer volume
+        test.set_transfer_volume(20)
+        # Set up combinations
+        self.assertEqual(0, len(test.clist))
+        test.generate_combinations()
+        self.assertEqual(7, len(test.clist))
+        # Set up transfers
+        self.assertEqual(1, len(test.transfers["all"]))
+        test.create_transfers()
+        self.assertEqual(13, len(test.transfers["all"]))
+        # Set an output filepath
+        filepath = os.path.join(self.wrkdir, "TestCMT.cmt")
+        # Test with a filepath that does not have an extension
+        test.save_cmt(os.path.join(self.wrkdir, "TestCMT"))
+        self.assertTrue(os.path.exists(filepath))
+        # Check file contents
+        with open(filepath, 'r') as cmt:
+            contents = cmt.readlines()
+            for i in range(len(contents)):
+                print(contents[i])
+                if contents[i] != "":
+                    if i < 4:
+                        self.assertEqual("#", contents[i][0])
+                    else:
+                        regex = r'^([<>A-Za-z0-9-_ ]+)\s(<ROW>|[0-9]+)\s(<COL>|[0-9]+)\s([A-Za-z0-9-_ ]+)\s([0-9\.]+)\s([A-Za-z0-9-_ ]+)?\s([0-9\.]+)?\s([A-Za-z0-9-_ ]+)?\s([0-9\.]+)?$'
+                        m = re.search(regex, contents[i])
+                        self.assertIsNotNone(m)
+        # Delete test file
+        os.remove(filepath)
+        # Test with just the filename
+        test.save_cmt("TestCMT.cmt")
+        self.assertTrue(os.path.exists(os.path.join(os.getcwd(), "TestCMT.cmt")))
+        # Delete the test file
+        os.remove(os.path.join(os.getcwd(), "TestCMT.cmt"))
+        # Test with a bogus path
+        self.assertRaises(Exception, test.save_cmt, os.path.join("C:\\Some\\bogus\\path", "TestCMT"))
+        return
 

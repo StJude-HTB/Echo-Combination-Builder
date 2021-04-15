@@ -41,17 +41,36 @@ exp.platemap.plates["E3P00000776"].set_backfill_wells(wells)
 exp.generate_combinations(3)
 
 
-# 5. Set transfer volume - All combinations will be the 1:1:1 volume ratios
-# Volume is in nanoliters
+# 5. Set transfer volume or assay conditions
+# Option 1: Set a static volume for all substances
+#           Volume is in nanoliters - All combinations will be 
+#           the 1:1:1 volume ratios
 volume = 100
-exp.set_volume(volume)
+# exp.set_transfer_volume(volume)
+
+# Option 2: Set assay volume and assay concentration
+#           Assay volume is in microliters
+#           Assay concentration(s) must be supplied
+exp.set_assay_volume(25)
+# Set a constant concentration for all substances
+# exp.set_assay_concentration(conc=50, unit="mM")
+# Or set each concentration idependently with a csv file
+exp.set_assay_concentration(file="Example_Files\\Example_Final_Concs.csv")
 
 
 # 7. Create the transfer list
 exp.create_transfers()
 
 
-# 6. Save transfer list - Echo formatted CSV file
-save_filepath = "Example_Files\\ExampleOutput2.csv"
-exp.save_transfers(save_filepath, "destination")
+# 8. Sort transfer list for optimized transfer speed
+exp.sort_transfers()
 
+
+# 9. Save transfer list - Echo formatted CSV file
+save_filepath = "Example_Files\\ExampleOutput3.csv"
+exp.save_transfers(save_filepath)
+
+
+#10. Save *.cmt file - Screener Mapping File
+cmt_file = "Example_Files\\ExampleOutput4.cmt"
+exp.save_cmt(cmt_file)
