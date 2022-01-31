@@ -1,3 +1,4 @@
+.gitignore
 __pycache__/Combinations.cpython-38.pyc
 __pycache__/Test_Combinations.cpython-38-pytest-5.4.3.pyc
 htmlcov/Combinations_py.html
@@ -13,3 +14,4 @@ htmlcov/keybd_closed.png
 htmlcov/keybd_open.png
 htmlcov/status.json
 htmlcov/style.css
+Development Notes.txt
