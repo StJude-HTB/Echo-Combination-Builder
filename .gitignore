@@ -1,6 +1,4 @@
-.gitignore
-__pycache__/Combinations.cpython-38.pyc
-__pycache__/Test_Combinations.cpython-38-pytest-5.4.3.pyc
+__pycache__
 htmlcov/Combinations_py.html
 htmlcov/coverage_html.js
 htmlcov/favicon_32.png
