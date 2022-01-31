@@ -62,6 +62,39 @@ def conc_unit_conversion(conc, unit):
     unit_conversion = {"M":1, "mM":1000, "uM":1000000, "nM":1000000000, "pM":1000000000000}
     return float(conc)/unit_conversion[unit]
 
+def update_CMT_barcodes(cmt_file, barcode_file):
+    # Expects barcodes supplied as a csv with two columns: generic name, barcode
+    # Replaces all instances of generic name in cmt with barcode
+    replacements = dict()
+    pattern = re.compile(r'^(?P<name><destination[0-9]+[_A-Z]*>)')
+    if(os.path.exists(barcode_file)):
+        with open(barcode_file, 'r') as barcodes:
+            for line in barcodes:
+                [name, bc] = line.split(',')
+                replacements[name] = bc.strip()
+    print(" * Imported " + str(len(replacements)) + " replacement barcodes")
+    counter = 0
+    if(os.path.exists(cmt_file)):
+        new_cmt_file = cmt_file.replace(".cmt", "-Updated.cmt")
+        with open(cmt_file, 'r') as cmt:
+            with open(new_cmt_file, 'w') as new_cmt:
+                for line in cmt:
+                    if(line[0] == "#"):
+                        new_cmt.write(line)
+                    else:
+                        match = pattern.match(line)
+                        if(match):
+                            # print("MATCH     -  " + line)
+                            d = match.groupdict()
+                            new_line = line.replace(d["name"], replacements[d["name"].replace("<", "").replace(">", "")])
+                            counter += 1
+                            new_cmt.write(new_line)
+                        else:
+                            # print("NO MATCH  -  " + line)
+                            new_cmt.write(line)
+    print(" * Replaced " + str(counter) + " barcodes in " + new_cmt_file)
+    return 
+
 
 class Platemap(object):
 
@@ -192,7 +225,8 @@ class Combinations(object):
     map_header1 = "# Genedata Screener Compound Mapping Table - Created by Echo Combinations Builder\n"
     map_header2 = "# <MAPPING_PARAMETERS>\n"
     map_header3 = "# PlateFormat\t<ROWS>\t<COLUMNS>\n"
-    map_header4 = "# PlateID\tRow\tCol\tCompound ID\tConcentration\tSUB_EXPERIMENT_PROPERTY:Compound ID2\tWELL_PROPERTY:Conc.2 [uM]\tSUB_EXPERIMENT_PROPERTY:Compound ID3\tWELL_PROPERTY:Conc.3 [uM]\n"
+    map_header4 = "# ConcentrationUnit\tuM\n"
+    map_header5 = "# PlateID\tRow\tCol\tCompound ID\tConcentration\tCONDENSING_PROPERTY:Compound ID2\tWELL_PROPERTY:Conc.2 [uM]\tCONDENSING_PROPERTY:Compound ID3\tWELL_PROPERTY:Conc.3 [uM]\n"
     plate_dims = {96: [8,12], 384: [16,24], 1536:[32,48]}
     plt_format = 384                # Format of plate - defaults to 384, can also be 96 or 1536
     used_backfills = list()         # List of backfill wells that have been used - is populated and cleared automatically
@@ -200,11 +234,12 @@ class Combinations(object):
     transfer_vol = 0.0              # Volume of compounds to tranfer, is overidden by compound specific volumes
     assay_volume = 0.0              # Assay Volume in uL
     assay_concentrations = dict()   # Assay Concentrations keyed on compound ids - missing compounds will use the global volume
+    factor = 1                      # Dead volume factor, default is 1 or no dead volume adjustment, Volumes and concentrations are adjusted
 
     # Workflow: Init -> Load Map -> Setup Control Compounds -> 
     #           Reserve Control Wells -> Setup Backfill Wells -> 
     #           Set Volume -> Load or Calculate Combinations ->  
-    #           Create Transfer File
+    #           Create Transfer File -> Create *.cmt File
 
     def __init__(self, format=384):
         # Set the transfer file header as the first element of the transfer list
@@ -278,7 +313,7 @@ class Combinations(object):
             with open(file, 'r') as concs:
                 i = 0
                 # Expects a csv with three columns: Compound ID, Concentration to use, and Concentration unit
-                pattern = re.compile(r'^(?P<id>[a-zA-Z0-9_\-() ]+),(?P<conc>[0-9]+\.?[0-9]+),(?P<unit>[pnum]?[M])$')
+                pattern = re.compile(r'^(?P<id>[a-zA-Z0-9_\-() ]+),(?P<conc>[0-9]+\.?[0-9]*),(?P<unit>[pnum]?[M])$')
                 for line in concs:
                     match = pattern.match(line)
                     if(match):
@@ -341,7 +376,7 @@ class Combinations(object):
                 col += 1
             row += 1
         # Store wells dictionary
-        self.destinations["destination"+str(len(self.destinations)+1)] = wells
+        self.destinations["destination"+("0"+str(len(self.destinations)+1))[-2:]] = wells
         return
 
     def find_next_dest(self):
@@ -457,10 +492,10 @@ class Combinations(object):
             raise Exception("Argument Error: Arguments 'stock_conc' and 'assay_conc' bust be greater than 0")
         if(self.assay_volume <= 0):
             raise Exception("Calculation Error: Assay Volume must be set before transfer volumes can be calulated from concentrations")
-        vol = float(assay_conc) * float(self.assay_volume) / float(stock_conc) * 1000
+        vol = float(assay_conc) * float(self.assay_volume) / float(stock_conc) * 1000 * self.factor
         return 2.5 * round(vol/2.5, 0)
     
-    def get_max_volume(self):
+    def get_max_volume(self, factor=1):
         max_vol = 0.0
         max_combination = None
         for comb in self.clist:
@@ -477,7 +512,8 @@ class Combinations(object):
                 max_combination = ",".join(comb)
         return (2.5 * round(max_vol/2.5, 0), max_combination)
 
-    def create_transfers(self):
+    def create_transfers(self, scale_factor=1):
+        self.factor = scale_factor
         if(self.platemap is not None):
             max_vol = self.get_max_volume()[0]
             for combination in self.clist:
@@ -522,7 +558,7 @@ class Combinations(object):
                         trans_str = self.format_transfer(src, row, col, dest_plt, dest_row, dest_col, vol, note)
                         if trans_str is not None:
                             if conc and vol and self.assay_volume > 0:
-                                assay_conc = float(conc) * float(vol) / (self.assay_volume * 1000) * 1000
+                                assay_conc = float(conc) * float(vol) / (self.assay_volume * 1000) * 1000 / self.factor
                             else:
                                 assay_conc = 0
                             self.transfers["all"].append(trans_str)
@@ -608,7 +644,7 @@ class Combinations(object):
             self.map_header2 = self.map_header2.replace("<MAPPING_PARAMETERS>", params)
             self.map_header3 = self.map_header3.replace("<ROWS>", str(self.plate_dims[self.plt_format][0]))
             self.map_header3 = self.map_header3.replace("<COLUMNS>", str(self.plate_dims[self.plt_format][1]))
-            content = [self.map_header1, self.map_header2, self.map_header3, self.map_header4]
+            content = [self.map_header1, self.map_header2, self.map_header3, self.map_header4, self.map_header5]
             return content
     
     def create_mapping_line(self, line, mapping):
@@ -619,13 +655,15 @@ class Combinations(object):
         for i in range(3):
             if len(mapping) >= (i+1):
                 line = line.replace("<ID" + str(i+1) + ">", str(mapping[i][0]))
-                line = line.replace("<CONC" + str(i+1) + ">", str(mapping[i][1]))
+                # Convert the concentration to uM and add to CMT line
+                line = line.replace("<CONC" + str(i+1) + ">", str(mapping[i][1]*1000))
             else:
                 line = line.replace("<ID" + str(i+1) + ">", "")
                 line = line.replace("<CONC" + str(i+1) + ">", "")
         return line
 
-    def save_cmt(self, saveas):
+    # TODO: Add support for replicates in the CMT file
+    def save_cmt(self, saveas, replicates=1):
         if(saveas[-4:].lower() != ".cmt"):
             saveas = saveas + ".cmt"
         if(not path.dirname(saveas)):
@@ -634,18 +672,38 @@ class Combinations(object):
             raise Exception("Invalid Save Path: The directory " + path.dirname(saveas) + "does not exist")
         if(len(self.destinations) >= 1):
             content = self.create_cmt_header()
+            destination_table = set()
             # Iterate over destinations and add mapped transfers to the content
             for p in self.destinations:
                 for w in self.destinations[p]:
-                    if "mapping" in self.destinations[p][w]:
+                    if "mapping" in self.destinations[p][w] and \
+                       len(self.destinations[p][w]["mapping"]) > 0:
                         (_, [row, col]) = parse_well_alpha(w)
                         line = self.map_tmplt.replace("DEST_NAME", p)
                         line = line.replace("<ROW>", str(row))
                         line = line.replace("<COL>", str(col))
-                        line = self.create_mapping_line(line, self.destinations[p][w]["mapping"])
-                        content.append(line)
+                        try:
+                            line = self.create_mapping_line(line, self.destinations[p][w]["mapping"])
+                        except:
+                            print("Exception: create_mapping_line error")
+                            print("P: " + p + "  W: " + w)
+                            print("Line: " + line)
+                            print("Mapping: " + ",".join(self.destinations[p][w]["mapping"]))
+                        if(replicates > 1):
+                            for r in range(replicates):
+                                rep_name =  p + "_" + list(string.ascii_uppercase)[r]
+                                destination_table.add(rep_name + ",\n")
+                                content.append(line.replace(p, rep_name))
+                        else:
+                            destination_table.add(p + ",\n")
+                            content.append(line)
             with open(saveas, 'w') as output:
                 output.writelines(content)
-            if(os.path.exists(saveas)):
+            # Write the destinations table to a file
+            destinations_file = saveas.replace(".cmt", "_Destinations.csv")
+            with open(destinations_file, 'w') as dest_table:
+                dest_table.writelines(destination_table)
+            if(os.path.exists(saveas) and os.path.exists(destinations_file)):
                 print(" * Screener *.cmt saved to: " + saveas)
+                print(" * Destination Plate List saved to: " + destinations_file)
         return

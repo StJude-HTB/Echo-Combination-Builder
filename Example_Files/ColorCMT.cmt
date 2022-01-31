@@ -1,0 +1,45 @@
+# Genedata Screener Compound Mapping Table - Created by Echo Combinations Builder
+# Combinations: 41 | Default Volume: 0.0nl
+# PlateFormat	16	24
+# PlateID	Row	Col	Compound ID	Concentration	SUB_EXPERIMENT_PROPERTY:Compound ID2	WELL_PROPERTY:Conc.2 [uM]	SUB_EXPERIMENT_PROPERTY:Compound ID3	WELL_PROPERTY:Conc.3 [uM]
+<destination1>	1	3	SJ001	0.005				
+<destination1>	1	4	SJ002	0.005				
+<destination1>	1	5	SJ003	0.005				
+<destination1>	1	6	SJ004	0.005				
+<destination1>	1	7	SJ005	0.005				
+<destination1>	1	8	SJ006	0.005				
+<destination1>	1	9	SJ001	0.005	SJ002	0.005		
+<destination1>	1	10	SJ001	0.005	SJ003	0.005		
+<destination1>	1	11	SJ001	0.005	SJ004	0.005		
+<destination1>	1	12	SJ001	0.005	SJ005	0.005		
+<destination1>	1	15	SJ001	0.005	SJ006	0.005		
+<destination1>	1	16	SJ002	0.005	SJ003	0.005		
+<destination1>	1	17	SJ002	0.005	SJ004	0.005		
+<destination1>	1	18	SJ002	0.005	SJ005	0.005		
+<destination1>	1	19	SJ002	0.005	SJ006	0.005		
+<destination1>	1	20	SJ003	0.005	SJ004	0.005		
+<destination1>	1	21	SJ003	0.005	SJ005	0.005		
+<destination1>	1	22	SJ003	0.005	SJ006	0.005		
+<destination1>	1	23	SJ004	0.005	SJ005	0.005		
+<destination1>	1	24	SJ004	0.005	SJ006	0.005		
+<destination1>	2	3	SJ005	0.005	SJ006	0.005		
+<destination1>	2	4	SJ001	0.005	SJ002	0.005	SJ003	0.005
+<destination1>	2	5	SJ001	0.005	SJ002	0.005	SJ004	0.005
+<destination1>	2	6	SJ001	0.005	SJ002	0.005	SJ005	0.005
+<destination1>	2	7	SJ001	0.005	SJ002	0.005	SJ006	0.005
+<destination1>	2	8	SJ001	0.005	SJ003	0.005	SJ004	0.005
+<destination1>	2	9	SJ001	0.005	SJ003	0.005	SJ005	0.005
+<destination1>	2	10	SJ001	0.005	SJ003	0.005	SJ006	0.005
+<destination1>	2	11	SJ001	0.005	SJ004	0.005	SJ005	0.005
+<destination1>	2	12	SJ001	0.005	SJ004	0.005	SJ006	0.005
+<destination1>	2	15	SJ001	0.005	SJ005	0.005	SJ006	0.005
+<destination1>	2	16	SJ002	0.005	SJ003	0.005	SJ004	0.005
+<destination1>	2	17	SJ002	0.005	SJ003	0.005	SJ005	0.005
+<destination1>	2	18	SJ002	0.005	SJ003	0.005	SJ006	0.005
+<destination1>	2	19	SJ002	0.005	SJ004	0.005	SJ005	0.005
+<destination1>	2	20	SJ002	0.005	SJ004	0.005	SJ006	0.005
+<destination1>	2	21	SJ002	0.005	SJ005	0.005	SJ006	0.005
+<destination1>	2	22	SJ003	0.005	SJ004	0.005	SJ005	0.005
+<destination1>	2	23	SJ003	0.005	SJ004	0.005	SJ006	0.005
+<destination1>	2	24	SJ003	0.005	SJ005	0.005	SJ006	0.005
+<destination1>	3	3	SJ004	0.005	SJ005	0.005	SJ006	0.005

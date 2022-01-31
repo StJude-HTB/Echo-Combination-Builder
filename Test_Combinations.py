@@ -7,6 +7,14 @@ else:
     from unittest import mock
 
 class Standalone_Methods_TestingMethods(unittest.TestCase):
+    def setUp(self):
+        self.cmt = "Test_Files\\Test_CMT.cmt"
+        self.barcodes = "Test_Files\\Test_Barcode_Replacement.csv"
+        return
+    
+    def tearDown(self):
+        return
+
     def test_01_parse_well_alpha(self):
         # Test the method
         well = Combinations.parse_well_alpha("A01")
@@ -94,6 +102,43 @@ class Standalone_Methods_TestingMethods(unittest.TestCase):
         # Combinations for exceptions
         self.assertRaises(Exception, Combinations.conc_unit_conversion, conc=50, unit="mg/ml")
         return
+
+    def test_05_update_cmt_barcodes(self):
+        # Test with ColorCMT file
+        Combinations.update_CMT_barcodes(self.cmt, self.barcodes)
+        # Set up Regex Patterns
+        old_pat = re.compile(r'^(?P<name><destination[0-9+]>)(?P<details>\s[0-9]+\s[0-9]+\s[SJ0-9]+\s[0-9\.]+\s[SJ0-9]*\s[0-9\.]*\s[SJ0-9]*\s[0-9\.]*)$')
+        new_pat = re.compile(r'^(?P<name>[a-zA-Z0-9]+)(?P<details>\s[0-9]+\s[0-9]+\s[SJ0-9]+\s[0-9\.]+\s[SJ0-9]*\s[0-9\.]*\s[SJ0-9]*\s[0-9\.]*)$')
+        # Get the Barcode Subs
+        substitutions = dict()
+        with open(self.barcodes, 'r') as barcodes:
+            for line in barcodes:
+                [name, bc] = line.split(',')
+                substitutions[name] = bc.strip()
+        # Open output and confirm it worked
+        new_file = self.cmt.replace(".cmt", "-Updated.cmt")
+        self.assertTrue(os.path.exists(new_file))
+        with open(new_file, 'r') as new_cmt:
+            new_content = new_cmt.readlines()
+        with open(self.cmt, 'r') as old_cmt:
+            old_content = old_cmt.readlines()
+        self.assertEqual(len(new_content), len(old_content))
+        for i in range(len(new_content)):
+            if(new_content[i][0] == "#" or (len(new_content[i]) == 0 and len(old_content[i]) == 0)):
+                self.assertEqual(new_content[i], old_content[i])
+            else:
+                print(old_content[i], "---->", new_content[i])
+                old_match = old_pat.match(old_content[i])
+                new_match = new_pat.match(new_content[i])
+                self.assertTrue(old_match)
+                self.assertTrue(new_match)
+                old_match_groups = old_match.groupdict()
+                new_match_groups = new_match.groupdict()
+                self.assertEqual(old_match_groups["details"], new_match_groups["details"])
+                self.assertEqual(new_match_groups["name"], substitutions[old_match_groups["name"].replace("<", "").replace(">", "")])
+        os.remove(new_file)
+        return
+
 
 
 class Platemap_TestingMethods(unittest.TestCase):
@@ -607,12 +652,12 @@ class Combinations_TestingMethods(unittest.TestCase):
         # Use default format -> 384
         test.add_empty_plate()
         self.assertEqual(1, len(test.destinations))
-        self.assertIn("destination1", test.destinations)
-        self.assertEqual(384, len(test.destinations["destination1"]))
-        self.assertIn("A01", test.destinations["destination1"])
-        self.assertIn("P24", test.destinations["destination1"])
-        for w in test.destinations["destination1"]:
-            well = test.destinations["destination1"][w]
+        self.assertIn("destination01", test.destinations)
+        self.assertEqual(384, len(test.destinations["destination01"]))
+        self.assertIn("A01", test.destinations["destination01"])
+        self.assertIn("P24", test.destinations["destination01"])
+        for w in test.destinations["destination01"]:
+            well = test.destinations["destination01"][w]
             self.assertIn("coord", well)
             self.assertNotIn("transfers", well)
             self.assertEqual(2, len(well['coord']))
@@ -621,12 +666,12 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.destinations = dict()
         test.add_empty_plate()
         self.assertEqual(1, len(test.destinations))
-        self.assertIn("destination1", test.destinations)
-        self.assertEqual(96, len(test.destinations["destination1"]))
-        self.assertIn("A01", test.destinations["destination1"])
-        self.assertIn("H12", test.destinations["destination1"])
-        for w in test.destinations["destination1"]:
-            well = test.destinations["destination1"][w]
+        self.assertIn("destination01", test.destinations)
+        self.assertEqual(96, len(test.destinations["destination01"]))
+        self.assertIn("A01", test.destinations["destination01"])
+        self.assertIn("H12", test.destinations["destination01"])
+        for w in test.destinations["destination01"]:
+            well = test.destinations["destination01"][w]
             self.assertIn("coord", well)
             self.assertNotIn("transfers", well)
             self.assertEqual(2, len(well['coord']))
@@ -635,12 +680,12 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.destinations = dict()
         test.add_empty_plate()
         self.assertEqual(1, len(test.destinations))
-        self.assertIn("destination1", test.destinations)
-        self.assertEqual(384, len(test.destinations["destination1"]))
-        self.assertIn("A01", test.destinations["destination1"])
-        self.assertIn("P24", test.destinations["destination1"])
-        for w in test.destinations["destination1"]:
-            well = test.destinations["destination1"][w]
+        self.assertIn("destination01", test.destinations)
+        self.assertEqual(384, len(test.destinations["destination01"]))
+        self.assertIn("A01", test.destinations["destination01"])
+        self.assertIn("P24", test.destinations["destination01"])
+        for w in test.destinations["destination01"]:
+            well = test.destinations["destination01"][w]
             self.assertIn("coord", well)
             self.assertNotIn("transfers", well)
             self.assertEqual(2, len(well['coord']))
@@ -649,12 +694,12 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.destinations = dict()
         test.add_empty_plate()
         self.assertEqual(1, len(test.destinations))
-        self.assertIn("destination1", test.destinations)
-        self.assertEqual(1536, len(test.destinations["destination1"]))
-        self.assertIn("A01", test.destinations["destination1"])
-        self.assertIn("AF48", test.destinations["destination1"])
-        for w in test.destinations["destination1"]:
-            well = test.destinations["destination1"][w]
+        self.assertIn("destination01", test.destinations)
+        self.assertEqual(1536, len(test.destinations["destination01"]))
+        self.assertIn("A01", test.destinations["destination01"])
+        self.assertIn("AF48", test.destinations["destination01"])
+        for w in test.destinations["destination01"]:
+            well = test.destinations["destination01"][w]
             self.assertIn("coord", well)
             self.assertNotIn("transfers", well)
             self.assertEqual(2, len(well['coord']))
@@ -665,14 +710,14 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(0, len(test.destinations))
         next_well = test.find_next_dest()
         self.assertEqual(1, len(test.destinations))
-        self.assertEqual(["destination1", "A01"], next_well)
+        self.assertEqual(["destination01", "A01"], next_well)
         # Iteratively fill a well and test again
         while next_well[1] != "P24":
             prev_well = next_well[1]
             test.destinations[next_well[0]][next_well[1]]["transfers"] = []
             next_well = test.find_next_dest()
             self.assertEqual(1, len(test.destinations))
-            self.assertEqual("destination1", next_well[0])
+            self.assertEqual("destination01", next_well[0])
             self.assertNotEqual(prev_well, next_well[1])
         return
     
@@ -743,65 +788,65 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(len(ctrl_wells), len(test.control_wells))
         # Use default fill_mode
         well = test.find_next_ctrl()
-        self.assertEqual(["destination1", "A21"], well)
-        test.destinations["destination1"]["A21"]["transfers"] = ""
+        self.assertEqual(["destination01", "A21"], well)
+        test.destinations["destination01"]["A21"]["transfers"] = ""
         well = test.find_next_ctrl()
-        self.assertEqual(["destination1", "B21"], well)
-        test.destinations["destination1"]["B21"]["transfers"] = ""
+        self.assertEqual(["destination01", "B21"], well)
+        test.destinations["destination01"]["B21"]["transfers"] = ""
         well = test.find_next_ctrl()
-        self.assertEqual(["destination1", "A22"], well)
-        test.destinations["destination1"]["A22"]["transfers"] = ""
+        self.assertEqual(["destination01", "A22"], well)
+        test.destinations["destination01"]["A22"]["transfers"] = ""
         well = test.find_next_ctrl()
-        self.assertEqual(["destination1", "B22"], well)
-        test.destinations["destination1"]["B22"]["transfers"] = ""
+        self.assertEqual(["destination01", "B22"], well)
+        test.destinations["destination01"]["B22"]["transfers"] = ""
         # Reset
         test.destinations = dict()
         # Test with row fill_mode
         well = test.find_next_ctrl("row")
-        self.assertEqual(["destination1", "A21"], well)
-        test.destinations["destination1"]["A21"]["transfers"] = ""
+        self.assertEqual(["destination01", "A21"], well)
+        test.destinations["destination01"]["A21"]["transfers"] = ""
         well = test.find_next_ctrl("row")
-        self.assertEqual(["destination1", "A22"], well)
-        test.destinations["destination1"]["A22"]["transfers"] = ""
+        self.assertEqual(["destination01", "A22"], well)
+        test.destinations["destination01"]["A22"]["transfers"] = ""
         well = test.find_next_ctrl("row")
-        self.assertEqual(["destination1", "A23"], well)
-        test.destinations["destination1"]["A23"]["transfers"] = ""
+        self.assertEqual(["destination01", "A23"], well)
+        test.destinations["destination01"]["A23"]["transfers"] = ""
         well = test.find_next_ctrl("row")
-        self.assertEqual(["destination1", "A24"], well)
-        test.destinations["destination1"]["A24"]["transfers"] = ""
+        self.assertEqual(["destination01", "A24"], well)
+        test.destinations["destination01"]["A24"]["transfers"] = ""
         well = test.find_next_ctrl("row")
-        self.assertEqual(["destination1", "B21"], well)
-        test.destinations["destination1"]["B21"]["transfers"] = ""
+        self.assertEqual(["destination01", "B21"], well)
+        test.destinations["destination01"]["B21"]["transfers"] = ""
         # Reset
         test.destinations = dict()
         # Test with column fill_mode
         well = test.find_next_ctrl("column")
-        self.assertEqual(["destination1", "A21"], well)
-        test.destinations["destination1"]["A21"]["transfers"] = ""
+        self.assertEqual(["destination01", "A21"], well)
+        test.destinations["destination01"]["A21"]["transfers"] = ""
         well = test.find_next_ctrl("column")
-        self.assertEqual(["destination1", "B21"], well)
-        test.destinations["destination1"]["B21"]["transfers"] = ""
+        self.assertEqual(["destination01", "B21"], well)
+        test.destinations["destination01"]["B21"]["transfers"] = ""
         well = test.find_next_ctrl("column")
-        self.assertEqual(["destination1", "A22"], well)
-        test.destinations["destination1"]["A22"]["transfers"] = ""
+        self.assertEqual(["destination01", "A22"], well)
+        test.destinations["destination01"]["A22"]["transfers"] = ""
         well = test.find_next_ctrl("column")
-        self.assertEqual(["destination1", "B22"], well)
-        test.destinations["destination1"]["B22"]["transfers"] = ""
+        self.assertEqual(["destination01", "B22"], well)
+        test.destinations["destination01"]["B22"]["transfers"] = ""
         return
 
     def test_13_Combinations_format_transfer(self):
         test = Combinations.Combinations()
         # Test 1
-        test_str = test.format_transfer("Source1", "1", "1", "Destination1", "1", "1", "100")
-        expected_str = "Source1,1,1,Destination1,1,1,100,\n"
+        test_str = test.format_transfer("Source1", "1", "1", "Destination01", "1", "1", "100")
+        expected_str = "Source1,1,1,Destination01,1,1,100,\n"
         self.assertEqual(expected_str, test_str)
         # Test 2
-        test_str = test.format_transfer("Source1", "2", "1", "Destination1", "2", "1", "100")
-        expected_str = "Source1,1,2,Destination1,1,2,100,\n"
+        test_str = test.format_transfer("Source1", "2", "1", "Destination01", "2", "1", "100")
+        expected_str = "Source1,1,2,Destination01,1,2,100,\n"
         self.assertEqual(expected_str, test_str)
         # Test 3
-        test_str = test.format_transfer("Source1", "1", "3", "Destination1", "3", "1", "150")
-        expected_str = "Source1,3,1,Destination1,1,3,150,\n"
+        test_str = test.format_transfer("Source1", "1", "3", "Destination01", "3", "1", "150")
+        expected_str = "Source1,3,1,Destination01,1,3,150,\n"
         self.assertEqual(expected_str, test_str)
         return
     
@@ -824,7 +869,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.create_transfers()
         self.assertEqual(13, len(test.transfers["all"]))
         # Add a second group that goes to a second destination
-        d2 = [x.replace("destination1", "destination2") for x in test.transfers["all"] if test.trns_header not in x]
+        d2 = [x.replace("destination01", "destination02") for x in test.transfers["all"] if test.trns_header not in x]
         test.transfers["all"].extend(d2)
         # Check that they are not sorted
         with open(self.unsorted, 'r') as unsorted:
@@ -996,11 +1041,11 @@ class Combinations_TestingMethods(unittest.TestCase):
         # Set up combinations
         self.assertEqual(0, len(test.clist))
         test.generate_combinations()
-        self.assertEqual(696, len(test.clist))
+        self.assertEqual(696, len(test.clist))  # 696 = 560 3way + 120 2way + 16 1way Combinations
         # Create the transfer list, without backfills
         self.assertEqual(1, len(test.transfers["all"]))
         test.create_transfers()
-        self.assertEqual(1816, len(test.transfers["all"]))
+        self.assertEqual(1937, len(test.transfers["all"]))  # 1937 = 1680 3way + 240 2way + 16 1way + 1 header
         self.assertEqual(72, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
         self.assertEqual(72, len([w for p in test.destinations for w in test.destinations[p] if "mapping" not in test.destinations[p][w]]))
         for m in [test.destinations[p][w]['mapping'] for p in test.destinations for w in test.destinations[p] 
@@ -1016,7 +1061,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.platemap.plates["E3P00000776"].set_backfill_wells([x[0] for x in backfill_wells])
         self.assertEqual(64, len(test.platemap.get_backfill_wells()))
         test.create_transfers()
-        self.assertEqual(2508, len(test.transfers["all"]))
+        self.assertEqual(2629, len(test.transfers["all"]))
         # Count wells that are not used ()
         self.assertEqual(72, len([w for p in test.destinations for w in test.destinations[p] if "transfers" not in test.destinations[p][w]]))
         self.assertEqual(72, len([w for p in test.destinations for w in test.destinations[p] if "mapping" not in test.destinations[p][w]]))
@@ -1045,6 +1090,19 @@ class Combinations_TestingMethods(unittest.TestCase):
             self.assertTrue(len(m) <= 3)
             for x in m:
                 self.assertEqual(2, len(x))
+        well_vol = []
+        match_pattern = re.compile(r'^(?P<sn>[a-zA-Z0-9_-]+),(?P<sr>[0-9]{1,2}),(?P<sc>[0-9]{1,2}),(?P<dn>[a-zA-Z0-9_-]+),(?P<dr>[0-9]{1,2}),(?P<dc>[0-9]{1,2}),(?P<tv>[0-9\.]+),(?P<tn>.+)$')
+        for p in test.destinations:
+            for w in test.destinations[p]:
+                v = []
+                if "transfers" in test.destinations[p][w] and len(test.destinations[p][w]['transfers']) > 0:
+                    for t in test.destinations[p][w]["transfers"]:
+                        match = match_pattern.match(t)
+                        d = match.groupdict()
+                        v.append(float(d["tv"]))
+                    well_vol.append(sum(v))
+        self.assertEqual(1, len(set(well_vol)))
+        self.assertTrue(all([v > 0 for v in set(well_vol)]))
         return
     
     def test_16_Combinations_print_transfers(self):
@@ -1072,9 +1130,9 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.print_transfers()
         # Reset the stdout
         sys.stdout = sys.__stdout__
-        self.assertIn("all: source1,1,1,destination1,1,1,20.0", capturedOutput.getvalue())
-        self.assertIn("all: source1,2,1,destination1,2,1,20.0", capturedOutput.getvalue())
-        self.assertIn("all: source1,3,1,destination1,7,1,20.0", capturedOutput.getvalue())
+        self.assertIn("all: source1,1,1,destination01,1,1,20.0", capturedOutput.getvalue())
+        self.assertIn("all: source1,2,1,destination01,2,1,20.0", capturedOutput.getvalue())
+        self.assertIn("all: source1,3,1,destination01,7,1,20.0", capturedOutput.getvalue())
         return
 
     def test_17_1_Combinations_save_transfers(self):
@@ -1137,8 +1195,8 @@ class Combinations_TestingMethods(unittest.TestCase):
         # Save the file
         test.save_transfers(filepath)
         self.assertFalse(os.path.exists(filepath))
-        file1path = filepath.replace("TestCSV.csv", "E3P00000776-destination1_TestCSV.csv")
-        file2path = filepath.replace("TestCSV.csv", "E3P00000776-destination2_TestCSV.csv")
+        file1path = filepath.replace("TestCSV.csv", "E3P00000776-destination01_TestCSV.csv")
+        file2path = filepath.replace("TestCSV.csv", "E3P00000776-destination02_TestCSV.csv")
         self.assertTrue(os.path.exists(file1path))
         self.assertTrue(os.path.exists(file2path))
         # Test contents
@@ -1146,7 +1204,7 @@ class Combinations_TestingMethods(unittest.TestCase):
             line = csv.readline()
             exp_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume\n"
             self.assertEqual(exp_header, line)
-            line_regex = r'E3P00000776,[0-9]{1,2},[0-9]{1,2},destination1,[0-9]{1,2},[0-9]{1,2},[0-9]{1,3}.[0-9]?'
+            line_regex = r'E3P00000776,[0-9]{1,2},[0-9]{1,2},destination01,[0-9]{1,2},[0-9]{1,2},[0-9]{1,3}.[0-9]?'
             line = csv.readline()
             while line:
                 self.assertRegex(line, line_regex)
@@ -1155,7 +1213,7 @@ class Combinations_TestingMethods(unittest.TestCase):
             line = csv.readline()
             exp_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume\n"
             self.assertEqual(exp_header, line)
-            line_regex = r'E3P00000776,[0-9]{1,2},[0-9]{1,2},destination2,[0-9]{1,2},[0-9]{1,2},[0-9]{1,3}.[0-9]?'
+            line_regex = r'E3P00000776,[0-9]{1,2},[0-9]{1,2},destination02,[0-9]{1,2},[0-9]{1,2},[0-9]{1,3}.[0-9]?'
             line = csv.readline()
             while line:
                 self.assertRegex(line, line_regex)
@@ -1259,6 +1317,11 @@ class Combinations_TestingMethods(unittest.TestCase):
         test.set_assay_volume(25)
         actual = test.calculate_transfer_volume(10, 0.00625)
         self.assertEqual(15.0, actual)
+        # Test 4
+        test.set_assay_volume(25)
+        test.factor = 1.5
+        actual = test.calculate_transfer_volume(10, 0.00625)
+        self.assertEqual(22.5, actual)
         # Test Exceptions
         self.assertRaises(Exception, test.calculate_transfer_volume, 0, 10)
         self.assertRaises(Exception, test.calculate_transfer_volume, 10, 0)
@@ -1297,11 +1360,12 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(7, len(test.clist))
         # Make the header
         actual = test.create_cmt_header()
-        self.assertEqual(4, len(actual))
+        self.assertEqual(5, len(actual))
         self.assertEqual(test.map_header1, actual[0])
         self.assertEqual("# Combinations: 7 | Default Volume: 20.0nl\n", actual[1])
         self.assertEqual("# PlateFormat\t16\t24\n", actual[2])
-        self.assertEqual(test.map_header4, actual[3])
+        self.assertEqual('# ConcentrationUnit\tuM\n', actual[3])
+        self.assertEqual(test.map_header5, actual[4])
         return
     
     def test_23_Combinations_create_cmt_line(self):
@@ -1325,23 +1389,23 @@ class Combinations_TestingMethods(unittest.TestCase):
         # Create a line and test
         mapping = [["CMPD_ID1", 12.5], ["CMPD_ID2", 15.8], ["CMPD_ID3", 8.2]]
         actual = test.create_mapping_line(test.map_tmplt, mapping)
-        expected = "<DEST_NAME>\t<ROW>\t<COL>\tCMPD_ID1\t12.5\tCMPD_ID2\t15.8\tCMPD_ID3\t8.2\n"
+        expected = "<DEST_NAME>\t<ROW>\t<COL>\tCMPD_ID1\t12500.0\tCMPD_ID2\t15800.0\tCMPD_ID3\t8200.0\n"
         self.assertEqual(expected, actual)
         # Test with 2 compounds
         mapping = [["CMPD_ID1", 12.5], ["CMPD_ID2", 15.8]]
         actual = test.create_mapping_line(test.map_tmplt, mapping)
-        expected = "<DEST_NAME>\t<ROW>\t<COL>\tCMPD_ID1\t12.5\tCMPD_ID2\t15.8\t\t\n"
+        expected = "<DEST_NAME>\t<ROW>\t<COL>\tCMPD_ID1\t12500.0\tCMPD_ID2\t15800.0\t\t\n"
         self.assertEqual(expected, actual)
         # Test with 1 compound
         mapping = [["CMPD_ID1", 12.5]]
         actual = test.create_mapping_line(test.map_tmplt, mapping)
-        expected = "<DEST_NAME>\t<ROW>\t<COL>\tCMPD_ID1\t12.5\t\t\t\t\n"
+        expected = "<DEST_NAME>\t<ROW>\t<COL>\tCMPD_ID1\t12500.0\t\t\t\t\n"
         self.assertEqual(expected, actual)
         # Test with loaction information filled in
         mapping = [["CMPD_ID1", 12.5], ["CMPD_ID2", 15.8], ["CMPD_ID3", 8.2]]
         line = "<Destination_01>\t12\t3\t<ID1>\t<CONC1>\t<ID2>\t<CONC2>\t<ID3>\t<CONC3>\n"
         actual = test.create_mapping_line(line, mapping)
-        expected = "<Destination_01>\t12\t3\tCMPD_ID1\t12.5\tCMPD_ID2\t15.8\tCMPD_ID3\t8.2\n"
+        expected = "<Destination_01>\t12\t3\tCMPD_ID1\t12500.0\tCMPD_ID2\t15800.0\tCMPD_ID3\t8200.0\n"
         self.assertEqual(expected, actual)
         # Test for raising an exception
         self.assertRaises(Exception, test.create_mapping_line, None, mapping)
@@ -1366,23 +1430,63 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertEqual(13, len(test.transfers["all"]))
         # Set an output filepath
         filepath = os.path.join(self.wrkdir, "TestCMT.cmt")
+        dest_path = filepath.replace(".cmt", "_Destinations.csv")
         # Test with a filepath that does not have an extension
         test.save_cmt(os.path.join(self.wrkdir, "TestCMT"))
         self.assertTrue(os.path.exists(filepath))
+        # Check the contents of the destinations table first
+        self.assertTrue(os.path.exists(dest_path))
+        with open(dest_path, 'r') as dests:
+            dest_list = dests.readlines()
+            for line in dest_list:
+                regex = r'^([<>A-Za-z0-9-_ ]+),$'
+                m = re.search(regex, line)
+                self.assertIsNotNone(m)
         # Check file contents
         with open(filepath, 'r') as cmt:
             contents = cmt.readlines()
             for i in range(len(contents)):
                 print(contents[i])
                 if contents[i] != "":
-                    if i < 4:
+                    if i < 5:
                         self.assertEqual("#", contents[i][0])
                     else:
                         regex = r'^([<>A-Za-z0-9-_ ]+)\s(<ROW>|[0-9]+)\s(<COL>|[0-9]+)\s([A-Za-z0-9-_ ]+)\s([0-9\.]+)\s([A-Za-z0-9-_ ]+)?\s([0-9\.]+)?\s([A-Za-z0-9-_ ]+)?\s([0-9\.]+)?$'
                         m = re.search(regex, contents[i])
                         self.assertIsNotNone(m)
+                        self.assertIn(m.group(1), ["<" + d.replace(",", "").strip() + ">" for d in dest_list])
+        single_rep_len = len(contents)
         # Delete test file
         os.remove(filepath)
+        os.remove(dest_path)
+        # Test the replicates argument
+        test.save_cmt(os.path.join(self.wrkdir, "TestCMT"), 3)
+        self.assertTrue(os.path.exists(filepath))
+        # Check the contents of the destinations table first
+        self.assertTrue(os.path.exists(dest_path))
+        with open(dest_path, 'r') as dests:
+            dest_list = dests.readlines()
+            for line in dest_list:
+                regex = r'^([<>A-Za-z0-9-_ ]+),$'
+                m = re.search(regex, line)
+                self.assertIsNotNone(m)
+        # Check file contents
+        with open(filepath, 'r') as cmt:
+            contents = cmt.readlines()
+            for i in range(len(contents)):
+                print(contents[i])
+                if contents[i] != "":
+                    if i < 5:
+                        self.assertEqual("#", contents[i][0])
+                    else:
+                        regex = r'^([<>A-Za-z0-9-_ ]+)\s(<ROW>|[0-9]+)\s(<COL>|[0-9]+)\s([A-Za-z0-9-_ ]+)\s([0-9\.]+)\s([A-Za-z0-9-_ ]+)?\s([0-9\.]+)?\s([A-Za-z0-9-_ ]+)?\s([0-9\.]+)?$'
+                        m = re.search(regex, contents[i])
+                        self.assertIsNotNone(m)
+                        self.assertIn(m.group(1), ["<" + d.replace(",", "").strip() + ">" for d in dest_list])
+        self.assertEqual(len(contents), ((single_rep_len-5)*3)+5)
+        # Delete test file
+        os.remove(filepath)
+        os.remove(dest_path)
         # Test with just the filename
         test.save_cmt("TestCMT.cmt")
         self.assertTrue(os.path.exists(os.path.join(os.getcwd(), "TestCMT.cmt")))
