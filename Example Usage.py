@@ -17,13 +17,14 @@ control_wells.extend(Combine.generate_well_range("A13","P14"))
 static_transfer_volume = 100
 assay_volume = 30
 combination_max = 3
+substance_id_regex = r'SJ[0-9-]+'
 
 # Initialize the object
 exp = Combine.Combinations()
 
 
 # 2. Load the plate map
-exp.load_platemap(map_filepath)
+exp.load_platemap(map_filepath, substance_id_regex)
 
 
 # 3. Setup the backfill wells - Comment/Uncomment as needed

@@ -138,11 +138,11 @@ class Platemap(object):
 
 class SourcePlates(object):
 
-    def __init__(self, filepath):
+    def __init__(self, filepath, regex):
         self.plates = dict()
         raise_warning = False
         basic_pattern = re.compile(r'^(?P<id>[a-zA-Z0-9-_ ]+),(?P<row>[0-9]{1,2}),(?P<col>[0-9]{1,2}),?(?P<conc>[0-9]+\.?[0-9]*)?$')
-        mosaic_pattern = re.compile(r'^(?P<bc>[a-zA-Z0-9]+)\s.+\s(?P<id>SJ[0-9-]+)\s(?P<well>[A-Z]+[0-9]{1,2})\s[0-9]+\s(?P<conc>[0-9]+\.?[0-9]*)\s')
+        mosaic_pattern = re.compile(r'^(?P<bc>[a-zA-Z0-9]+)\s.+\s(?P<id>' + regex + r')\s(?P<well>[A-Z]+[0-9]{1,2})\s[0-9]+\s(?P<conc>[0-9]+\.?[0-9]*)\s')
         # Import the plate map
         if(path.exists(filepath)):
             with open(filepath, 'r') as map_file:
@@ -247,9 +247,9 @@ class Combinations(object):
         # Set the destination plate format
         self.plt_format = format
 
-    def load_platemap(self, filepath):
+    def load_platemap(self, filepath, id_regex):
         if(filepath is not None and path.exists(filepath)):
-            self.platemap = SourcePlates(filepath)
+            self.platemap = SourcePlates(filepath, id_regex)
             print(" * Loaded " + str(sum([len(x) for x in self.platemap.plates])) + " mapped wells")
         return
 
