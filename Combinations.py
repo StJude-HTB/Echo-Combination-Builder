@@ -220,7 +220,7 @@ class Combinations(object):
     transfers = {"all": list()}     # Lists of transfers - defaults to single list in 'all', by sorting with split multiple lists are possible
     destinations = dict()           # Destination plates keyed on destination plate name
     trns_str_tmplt = "<SRC_NAME>,<SRC_COL>,<SRC_ROW>,<DEST_NAME>,<DEST_COL>,<DEST_ROW>,<TRS_VOL>,<NOTE>\n"
-    trns_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume\n"
+    trns_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume,Note\n"
     map_tmplt = "<DEST_NAME>\t<ROW>\t<COL>\t<ID1>\t<CONC1>\t<ID2>\t<CONC2>\t<ID3>\t<CONC3>\n"
     map_header1 = "# Genedata Screener Compound Mapping Table - Created by Echo Combinations Builder\n"
     map_header2 = "# <MAPPING_PARAMETERS>\n"

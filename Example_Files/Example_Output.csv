@@ -1,4 +1,4 @@
-Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume
+Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume,Note
 source1,01,1,destination1,1,1,0.0
 source1,01,1,destination1,1,10,0.0
 source1,01,1,destination1,1,11,0.0
