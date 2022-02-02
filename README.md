@@ -105,7 +105,7 @@ OPTIONAL - Set replicate number to create replicate
 
 
 
-### IN A NEW SESSION
+**IN A NEW SESSION**
 This must be done after using the Echo CSV to transfer samples
 
 ### 11. Update CMT with barcodes after performing transfers
