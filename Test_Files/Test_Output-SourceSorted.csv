@@ -1,4 +1,4 @@
-Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume
+Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume,Note
 source1,1,1,destination01,1,1,20.0,Dasatinib
 source1,1,1,destination01,4,1,20.0,Dasatinib
 source1,1,1,destination01,5,1,20.0,Dasatinib

@@ -142,7 +142,7 @@ class SourcePlates(object):
         self.plates = dict()
         raise_warning = False
         basic_pattern = re.compile(r'^(?P<id>[a-zA-Z0-9-_ ]+),(?P<row>[0-9]{1,2}),(?P<col>[0-9]{1,2}),?(?P<conc>[0-9]+\.?[0-9]*)?$')
-        mosaic_pattern = re.compile(r'^(?P<bc>[a-zA-Z0-9]+)\s.+\s(?P<id>' + regex + r')\s(?P<well>[A-Z]+[0-9]{1,2})\s[0-9]+\s(?P<conc>[0-9]+\.?[0-9]*)\s')
+        mosaic_pattern = re.compile(r'^(?P<bc>[a-zA-Z0-9]+)\s?.*\s(?P<id>' + regex + r')\s(?P<well>[A-Z]+[0-9]{1,2})\s[0-9]+\s(?P<conc>[0-9]+.?[0-9]*)')
         # Import the plate map
         if(path.exists(filepath)):
             with open(filepath, 'r') as map_file:

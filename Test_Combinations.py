@@ -253,6 +253,7 @@ class SourcePlates_TestingMethods(unittest.TestCase):
         self.mosaicfile = "Test_Files\\PlateSummary.txt"
         self.mosaicmulti = "Test_Files\\PlateSummary-Multi.txt"
         self.echofile = "Test_Files\\ECHO CSV.csv"
+        self.id_regex = r'SJ[0-9-]+'
         warnings.simplefilter('ignore', category=UserWarning)
         return
 
@@ -279,7 +280,7 @@ class SourcePlates_TestingMethods(unittest.TestCase):
         return
     
     def test_01_SourcePlates_Initializes_with_basic_file(self):
-        test = Combinations.SourcePlates(self.mapfile)
+        test = Combinations.SourcePlates(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.plates)
         self.assertEqual(1, len(test.plates))
         self.assertIn("source1", test.plates)
@@ -299,7 +300,7 @@ class SourcePlates_TestingMethods(unittest.TestCase):
         return
     
     def test_02_SourcePlates_Initializes_with_mosaic_file(self):
-        test = Combinations.SourcePlates(self.mosaicfile)
+        test = Combinations.SourcePlates(self.mosaicfile, self.id_regex)
         self.assertIsNotNone(test.plates)
         self.assertEqual(1, len(test.plates))
         self.assertIn("E3P00000776", test.plates)
@@ -313,7 +314,7 @@ class SourcePlates_TestingMethods(unittest.TestCase):
         return
     
     def test_03_SourcePlates_Initializes_with_mosaic_file_multiple_sources(self):
-        test = Combinations.SourcePlates(self.mosaicmulti)
+        test = Combinations.SourcePlates(self.mosaicmulti, self.id_regex)
         print(test.plates["E3P00000776"].wells)
         print(test.plates["E3P00000777"].wells)
         self.assertIsNotNone(test.plates)
@@ -339,15 +340,15 @@ class SourcePlates_TestingMethods(unittest.TestCase):
         return
     
     def test_04_SourcePlates_Initializes_raises_warning(self):
-        self.assertWarns(UserWarning, Combinations.SourcePlates, self.mosaicfile)
+        self.assertWarns(UserWarning, Combinations.SourcePlates, self.mosaicfile, self.id_regex)
         return
     
     def test_05_SourcePlates_Initializes_raises_exception(self):
-        self.assertRaises(Exception, Combinations.SourcePlates, self.echofile)
+        self.assertRaises(Exception, Combinations.SourcePlates, self.echofile, self.id_regex)
         return
     
     def test_06_SourcePlates_get_all_compounds(self):
-        test = Combinations.SourcePlates(self.mosaicmulti)
+        test = Combinations.SourcePlates(self.mosaicmulti, self.id_regex)
         self.assertIsNotNone(test.plates)
         self.assertEqual(2, len(test.plates))
         # Test method
@@ -368,7 +369,7 @@ class SourcePlates_TestingMethods(unittest.TestCase):
         return
     
     def test_07_SourcePlates_find(self):
-        test = Combinations.SourcePlates(self.mosaicmulti)
+        test = Combinations.SourcePlates(self.mosaicmulti, self.id_regex)
         self.assertIsNotNone(test.plates)
         test.plates["E3P00000777"].wells["SJ000312343-2"] = {'location':[2,2], 'volume':0.0, 'conc':0.00033333333, 'usage':0}
         self.assertEqual(2, len(test.plates))
@@ -382,7 +383,7 @@ class SourcePlates_TestingMethods(unittest.TestCase):
                           ("E3P00000777", "SJ000312343-2", {'location':[2,2], 'volume':0.0, 'conc':0.00033333333, 'usage':0})], t3)
 
     def test_08_SourcePlates_mark_use(self):
-        test = Combinations.SourcePlates(self.mapfile)
+        test = Combinations.SourcePlates(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.plates)
         self.assertEqual(1, len(test.plates))
         self.assertIn("source1", test.plates)
@@ -401,7 +402,7 @@ class SourcePlates_TestingMethods(unittest.TestCase):
         return
 
     def test_09_SourcePlates_has_backfills(self):
-        test = Combinations.SourcePlates(self.mapfile)
+        test = Combinations.SourcePlates(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.plates)
         self.assertEqual(1, len(test.plates))
         self.assertIn("source1", test.plates)
@@ -411,7 +412,7 @@ class SourcePlates_TestingMethods(unittest.TestCase):
         return 
 
     def test_10_SourcePlates_get_backfill_wells(self):
-        test = Combinations.SourcePlates(self.mapfile)
+        test = Combinations.SourcePlates(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.plates)
         self.assertEqual(1, len(test.plates))
         self.assertIn("source1", test.plates)
@@ -457,7 +458,7 @@ class SourcePlates_TestingMethods(unittest.TestCase):
         return
     
     def test_11_SourcePlates_has_controls(self):
-        test = Combinations.SourcePlates(self.mapfile)
+        test = Combinations.SourcePlates(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.plates)
         self.assertFalse(test.has_controls())
         test.plates["source1"].set_controls(["Dasatinib"], [125], 16)
@@ -465,7 +466,7 @@ class SourcePlates_TestingMethods(unittest.TestCase):
         return
     
     def test_12_SourcePlates_get_control_wells(self):
-        test = Combinations.SourcePlates(self.mapfile)
+        test = Combinations.SourcePlates(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.plates)
         self.assertFalse(test.has_controls())
         test.plates["source1"].set_controls(["Dasatinib"], [125], 16)
@@ -492,7 +493,8 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.srcsortedlong = "Test_Files\\Test_Output_SrcLong.csv"
         self.destsortedlong = "Test_Files\\Test_Output_DestLong.csv"
         self.volumetable = "Test_Files\\Test_Volume_Table.csv"
-        self.conctable = "Test_Files\\Test_Concentration_Table.csv"
+        self.conctable = "Test_Files\\Test_Concentration_Table.csv"  
+        self.id_regex = r'SJ[0-9-]+'
         warnings.simplefilter('ignore', category=UserWarning)
         return
 
@@ -542,7 +544,7 @@ class Combinations_TestingMethods(unittest.TestCase):
     def test_02_Combinations_load_platemap(self):
         test = Combinations.Combinations()
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         self.assertEqual(3, len(test.platemap.get_all_compounds()))
         return
@@ -550,7 +552,7 @@ class Combinations_TestingMethods(unittest.TestCase):
     def test_03_Combinations_load_combinations(self):
         test = Combinations.Combinations()
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         # Now we can test the combinations load
         test.load_combinations(self.combine_file)
         self.assertIsNotNone(test.platemap)
@@ -571,7 +573,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         # Reset and add compounds
         test.set_transfer_volume(0.0)
         self.assertEqual(0.0, test.transfer_vol)
-        test.load_platemap(self.mosaicfile)
+        test.load_platemap(self.mosaicfile, self.id_regex)
         # Test Setting from Volume Table
         test.set_transfer_volume(file=self.volumetable)
         with open(self.volumetable, 'r') as vols:
@@ -583,7 +585,7 @@ class Combinations_TestingMethods(unittest.TestCase):
     
     def test_05_Combinations_reserve_control_wells(self):
         test = Combinations.Combinations()
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         # Make a list of wells
         ctrl_wells = ['A21', 'A22', 'A23', 'A24', 'B21', 'B22', 'B23', 'B24']
         # Test method
@@ -598,7 +600,7 @@ class Combinations_TestingMethods(unittest.TestCase):
 
     def test_06_Combinations_generate_combinations(self):
         test = Combinations.Combinations()
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         test.generate_combinations(3)
         self.assertEqual(7, len(test.clist))
         return
@@ -727,7 +729,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         well = test.get_next_backfill()
         self.assertIsNone(well)
         # Set a platemap and add a backfill well
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         self.assertEqual(3, len(test.platemap.get_all_compounds()))
         test.platemap.plates["source1"].set_backfill_wells(["P20", "P21", "P22", "P23", "P24"])
         self.assertEqual(5, len(test.platemap.plates["source1"].backfill))
@@ -779,7 +781,7 @@ class Combinations_TestingMethods(unittest.TestCase):
     
     def test_12_Combinations_find_next_ctrl(self):
         test = Combinations.Combinations()
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         # Make a list of wells
         ctrl_wells = ['A21', 'A22', 'A23', 'A24', 'B21', 'B22', 'B23', 'B24']
         # Test method
@@ -854,7 +856,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         self.assertTrue(len(test.platemap.get_all_compounds()) > 0)
         self.assertFalse(test.platemap.has_backfills())
@@ -900,7 +902,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mosaicfile)
+        test.load_platemap(self.mosaicfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         self.assertTrue(len(test.platemap.get_all_compounds()) > 0)
         # Set some backfill wells
@@ -935,7 +937,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mosaicfile)
+        test.load_platemap(self.mosaicfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         self.assertTrue(len(test.platemap.get_all_compounds()) > 0)
         # Set some backfill wells
@@ -967,7 +969,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mosaicfile)
+        test.load_platemap(self.mosaicfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         self.assertTrue(len(test.platemap.get_all_compounds()) > 0)
         # Set some backfill wells
@@ -992,7 +994,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         # Set a transfer volume
         test.set_transfer_volume(20)
@@ -1033,7 +1035,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mosaicfile)
+        test.load_platemap(self.mosaicfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         # Load assay concentrations and set assay volume
         test.set_assay_volume(25)
@@ -1111,7 +1113,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         # Set a transfer volume
         test.set_transfer_volume(20)
@@ -1139,7 +1141,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         # Set a transfer volume
         test.set_transfer_volume(20)
@@ -1159,7 +1161,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         # Test contents
         with open(filepath, 'r') as csv:
             line = csv.readline()
-            exp_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume\n"
+            exp_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume,Note\n"
             self.assertEqual(exp_header, line)
             line_regex = r'[a-zA-Z0-9]+,[0-9]{1,2},[0-9]{1,2},[a-zA-Z0-9]+,[0-9]{1,2},[0-9]{1,2},[0-9]{1,3}.[0-9]?'
             line = csv.readline()
@@ -1174,7 +1176,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mosaicfile)
+        test.load_platemap(self.mosaicfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         # Set a transfer volume
         test.set_transfer_volume(20)
@@ -1202,7 +1204,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         # Test contents
         with open(file1path, 'r') as csv:
             line = csv.readline()
-            exp_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume\n"
+            exp_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume,Note\n"
             self.assertEqual(exp_header, line)
             line_regex = r'E3P00000776,[0-9]{1,2},[0-9]{1,2},destination01,[0-9]{1,2},[0-9]{1,2},[0-9]{1,3}.[0-9]?'
             line = csv.readline()
@@ -1211,7 +1213,7 @@ class Combinations_TestingMethods(unittest.TestCase):
                 line = csv.readline()
         with open(file2path, 'r') as csv:
             line = csv.readline()
-            exp_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume\n"
+            exp_header = "Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume,Note\n"
             self.assertEqual(exp_header, line)
             line_regex = r'E3P00000776,[0-9]{1,2},[0-9]{1,2},destination02,[0-9]{1,2},[0-9]{1,2},[0-9]{1,3}.[0-9]?'
             line = csv.readline()
@@ -1227,7 +1229,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         # Set a transfer volume
         test.set_transfer_volume(20)
@@ -1266,7 +1268,7 @@ class Combinations_TestingMethods(unittest.TestCase):
 
     def test_19_Combinations_set_assay_concentrations(self):
         test = Combinations.Combinations()
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         test.set_assay_volume(25)
         self.assertIsNotNone(test.platemap)
         self.assertTrue(len(test.platemap.plates) > 0)
@@ -1277,7 +1279,7 @@ class Combinations_TestingMethods(unittest.TestCase):
             self.assertEqual(0.0005, test.assay_concentrations[c])
         # Reset and run again with the concentration table
         test.platemap = None
-        test.load_platemap(self.mosaicfile)
+        test.load_platemap(self.mosaicfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         self.assertTrue(len(test.platemap.plates) > 0)
         self.assertEqual(25, test.assay_volume)
@@ -1335,7 +1337,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         test.set_assay_volume(20)
         test.set_transfer_volume(25)
-        test.load_platemap(self.mosaicfile)
+        test.load_platemap(self.mosaicfile, self.id_regex)
         test.generate_combinations(3)
         # Test Method with standard transfer volume
         actual = test.get_max_volume()
@@ -1350,7 +1352,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         # Set a transfer volume
         test.set_transfer_volume(20)
@@ -1372,7 +1374,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         # Set a transfer volume
         test.set_transfer_volume(20)
@@ -1416,7 +1418,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         test = Combinations.Combinations()
         # Load platemap
         self.assertIsNone(test.platemap)
-        test.load_platemap(self.mapfile)
+        test.load_platemap(self.mapfile, self.id_regex)
         self.assertIsNotNone(test.platemap)
         # Set a transfer volume
         test.set_transfer_volume(20)

@@ -1,4 +1,4 @@
-Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume
+Source Barcode,Source Column,Source Row,Destination Barcode,Destination Column,Destination Row,Volume,Note
 E3P00000776,1,1,destination01,1,1,100.0,SJ000312343-2
 E3P00000776,21,1,destination01,1,1,200.0,Backfill
 E3P00000776,1,1,destination01,1,2,100.0,SJ000312343-2
