@@ -6,6 +6,11 @@ A Python module for creating large-scale combination work list files.
 The intended purpose of this module is to provide a framework for easily constructing work list files for import to Echo acoustic liquid handlers (Beckman Coulter) that create combinations of substances for high throughput screening assays.  The original application was for small molecule screening, but additional applications should be possible without modification.  There are a series of steps involved in creating the work list files and this module provides the methods needed to perform these steps.
 
 
+## Acknowledgement ##
+If this software is helpful to you please acknowledge the source in your publications.  Please use the following acknowledgement:
+"The authors would like to thank Duane Currier and Taosheng Chen of St Jude Children's Research Hospital for the use of the Combination Builder module (https://github.com/StJude-HTB/Echo-Combination-Builder)."
+
+
 ## Installation ##
 **Dependency:** Python 3.8+
 
@@ -124,3 +129,25 @@ This is a new python session - initialize the module again
 
 Update barcodes  
 `Combine.update_CMT_barcodes(cmt_filepath, barcode_filepath)`  
+
+
+## License ##
+Copyright (c) 2022 Duane Currier, Taosheng Chen, and St Jude Children's Research Hospital
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
