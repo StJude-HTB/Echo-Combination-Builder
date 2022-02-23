@@ -20,7 +20,7 @@ Install from pip:
 ## Use And Examples ##
 From the Python prompt the following commands will import the example files and produce example outputs.  The examples files referenced below can be downloaded by cloning this repository or downloading them from the Example_Files directory.  
 Import Combinations Module  
-`import combination-builder as Combine`
+`import combination_builder as Combine`
 
 
 ### 1. Set Values and Initialize a Combinations Object ###

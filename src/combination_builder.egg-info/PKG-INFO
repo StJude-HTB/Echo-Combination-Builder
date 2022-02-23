@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: combination-builder
-Version: 0.0.4
+Version: 0.1.0
 Summary: Provides a framework for easily constructing work list files for creation of combinations of substances for high throughput screening
 Home-page: https://github.com/StJude-HTB/Echo-Combination-Builder
 Author: Duane Currier
@@ -32,12 +32,12 @@ If this software is helpful to you please acknowledge the source in your publica
 **Dependency:** Python 3.8+
 
 Install from pip:  
-`py -m pip install "combination-builder"`  
+`python -m pip install combination-builder`  
 
 ## Use And Examples ##
-From the Python prompt the following commands will import the example files and produce example outputs  
-Import Combinations Module
-`import Combinations as Combine`
+From the Python prompt the following commands will import the example files and produce example outputs.  The examples files referenced below can be downloaded by cloning this repository or downloading them from the Example_Files directory.  
+Import Combinations Module  
+`import combination-builder as Combine`
 
 
 ### 1. Set Values and Initialize a Combinations Object ###
