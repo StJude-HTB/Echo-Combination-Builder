@@ -1,7 +1,4 @@
-# This script must be run from the same folder as the module or the 
-# module must be added to the system PATH
-
-import Combinations as Combine
+import combination_builder as Combine
 
 
 # 1. Set Values and Initialize a Combinations Object
@@ -98,7 +95,7 @@ exp.save_cmt(cmt_filepath, 3)
 # After using the Echo CSV to transfer samples
 #
 # 11. Update CMT with barcodes after performing transfers
-import Combinations as Combine
+import src.combination_builder.Combinations as Combine
 
 cmt_filepath = "Example_Files\\ExampleOutput4.cmt"
 barcode_filepath = "Example_Files\\Barcode_List.csv"

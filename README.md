@@ -14,9 +14,8 @@ If this software is helpful to you please acknowledge the source in your publica
 ## Installation ##
 **Dependency:** Python 3.8+
 
-The simplest way to install and use the module is to clone the repository and place a copy in a project directory on the local PC.  From a command line navigate to the directory where the module is located and launch python. For example:   
-`C:\> cd Foo\Bar`  
-`C:\Foo\Bar> python`  
+Install from pip:  
+`py -m pip install "combination-builder"`  
 
 ## Use And Examples ##
 From the Python prompt the following commands will import the example files and produce example outputs  
@@ -128,26 +127,4 @@ This is a new python session - initialize the module again
 `barcode_filepath = "Example_Files\\Barcode_List.csv"`  
 
 Update barcodes  
-`Combine.update_CMT_barcodes(cmt_filepath, barcode_filepath)`  
-
-
-## License ##
-Copyright (c) 2022 Duane Currier, Taosheng Chen, and St Jude Children's Research Hospital
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+`Combine.update_CMT_barcodes(cmt_filepath, barcode_filepath)` 

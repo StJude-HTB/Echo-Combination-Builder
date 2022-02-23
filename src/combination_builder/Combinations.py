@@ -92,7 +92,7 @@ def update_CMT_barcodes(cmt_file, barcode_file):
                         else:
                             # print("NO MATCH  -  " + line)
                             new_cmt.write(line)
-    print(" * Replaced " + str(counter) + " barcodes in " + new_cmt_file)
+        print(" * Replaced " + str(counter) + " barcodes in " + new_cmt_file)
     return 
 
 

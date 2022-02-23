@@ -1,4 +1,4 @@
-import Combinations
+import src.combination_builder as Combinations
 import unittest, os, json, requests, io, warnings, re
 import sys
 if sys.version_info[0] < 3:
@@ -8,8 +8,8 @@ else:
 
 class Standalone_Methods_TestingMethods(unittest.TestCase):
     def setUp(self):
-        self.cmt = "Test_Files\\Test_CMT.cmt"
-        self.barcodes = "Test_Files\\Test_Barcode_Replacement.csv"
+        self.cmt = "Tests\\Test_Files\\Test_CMT.cmt"
+        self.barcodes = "Tests\\Test_Files\\Test_Barcode_Replacement.csv"
         return
     
     def tearDown(self):
@@ -144,12 +144,12 @@ class Standalone_Methods_TestingMethods(unittest.TestCase):
 class Platemap_TestingMethods(unittest.TestCase):
     
     def setUp(self):
-        self.mapfile = "Test_Files\\Platemap.csv"
-        self.combine_file = "Test_Files\\Combination Template.csv"
-        self.wrkdir = "Test_Files\\Echo Combination Builder"
-        self.mosaicfile = "Test_Files\\PlateSummary.txt"
-        self.mosaicmulti = "Test_Files\\PlateSummary-Multi.txt"
-        self.echofile = "Test_Files\\ECHO CSV.csv"
+        self.mapfile = "Tests\\Test_Files\\Platemap.csv"
+        self.combine_file = "Tests\\Test_Files\\Combination Template.csv"
+        self.wrkdir = "Tests\\Test_Files\\Echo Combination Builder"
+        self.mosaicfile = "Tests\\Test_Files\\PlateSummary.txt"
+        self.mosaicmulti = "Tests\\Test_Files\\PlateSummary-Multi.txt"
+        self.echofile = "Tests\\Test_Files\\ECHO CSV.csv"
         warnings.simplefilter('ignore', category=UserWarning)
         return
 
@@ -247,12 +247,12 @@ class Platemap_TestingMethods(unittest.TestCase):
 class SourcePlates_TestingMethods(unittest.TestCase):
 
     def setUp(self):
-        self.mapfile = "Test_Files\\Platemap.csv"
-        self.combine_file = "Test_Files\\Combination Template.csv"
-        self.wrkdir = "Test_Files\\Echo Combination Builder"
-        self.mosaicfile = "Test_Files\\PlateSummary.txt"
-        self.mosaicmulti = "Test_Files\\PlateSummary-Multi.txt"
-        self.echofile = "Test_Files\\ECHO CSV.csv"
+        self.mapfile = "Tests\\Test_Files\\Platemap.csv"
+        self.combine_file = "Tests\\Test_Files\\Combination Template.csv"
+        self.wrkdir = "Tests\\Test_Files\\Echo Combination Builder"
+        self.mosaicfile = "Tests\\Test_Files\\PlateSummary.txt"
+        self.mosaicmulti = "Tests\\Test_Files\\PlateSummary-Multi.txt"
+        self.echofile = "Tests\\Test_Files\\ECHO CSV.csv"
         self.id_regex = r'SJ[0-9-]+'
         warnings.simplefilter('ignore', category=UserWarning)
         return
@@ -481,19 +481,19 @@ class SourcePlates_TestingMethods(unittest.TestCase):
 class Combinations_TestingMethods(unittest.TestCase):
    
     def setUp(self):
-        self.mapfile = "Test_Files\\Platemap.csv"
-        self.combine_file = "Test_Files\\Combination Template.csv"
-        self.wrkdir = "Test_Outputs"
-        self.mosaicfile = "Test_Files\\PlateSummary.txt"
-        self.mosaicmulti = "Test_Files\\PlateSummary-Multi.txt"
-        self.echofile = "Test_Files\\ECHO CSV.csv"
-        self.unsorted = "Test_Files\\Test_Output-Unsorted.csv"
-        self.sourcesorted = "Test_Files\\Test_Output-SourceSorted.csv"
-        self.destsorted = "Test_Files\\Test_Output-DestSorted.csv"
-        self.srcsortedlong = "Test_Files\\Test_Output_SrcLong.csv"
-        self.destsortedlong = "Test_Files\\Test_Output_DestLong.csv"
-        self.volumetable = "Test_Files\\Test_Volume_Table.csv"
-        self.conctable = "Test_Files\\Test_Concentration_Table.csv"  
+        self.mapfile = "Tests\\Test_Files\\Platemap.csv"
+        self.combine_file = "Tests\\Test_Files\\Combination Template.csv"
+        self.wrkdir = "Tests\\Test_Outputs"
+        self.mosaicfile = "Tests\\Test_Files\\PlateSummary.txt"
+        self.mosaicmulti = "Tests\\Test_Files\\PlateSummary-Multi.txt"
+        self.echofile = "Tests\\Test_Files\\ECHO CSV.csv"
+        self.unsorted = "Tests\\Test_Files\\Test_Output-Unsorted.csv"
+        self.sourcesorted = "Tests\\Test_Files\\Test_Output-SourceSorted.csv"
+        self.destsorted = "Tests\\Test_Files\\Test_Output-DestSorted.csv"
+        self.srcsortedlong = "Tests\\Test_Files\\Test_Output_SrcLong.csv"
+        self.destsortedlong = "Tests\\Test_Files\\Test_Output_DestLong.csv"
+        self.volumetable = "Tests\\Test_Files\\Test_Volume_Table.csv"
+        self.conctable = "Tests\\Test_Files\\Test_Concentration_Table.csv"  
         self.id_regex = r'SJ[0-9-]+'
         warnings.simplefilter('ignore', category=UserWarning)
         return
