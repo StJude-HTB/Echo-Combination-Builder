@@ -1494,6 +1494,7 @@ class Combinations_TestingMethods(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(os.getcwd(), "TestCMT.cmt")))
         # Delete the test file
         os.remove(os.path.join(os.getcwd(), "TestCMT.cmt"))
+        os.remove(os.path.join(os.getcwd(), "TestCMT_Destinations.csv"))
         # Test with a bogus path
         self.assertRaises(Exception, test.save_cmt, os.path.join("C:\\Some\\bogus\\path", "TestCMT"))
         return

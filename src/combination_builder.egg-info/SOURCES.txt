@@ -1,0 +1,10 @@
+LICENSE
+README.md
+pyproject.toml
+setup.py
+src/combination_builder/Combinations.py
+src/combination_builder/__init__.py
+src/combination_builder.egg-info/PKG-INFO
+src/combination_builder.egg-info/SOURCES.txt
+src/combination_builder.egg-info/dependency_links.txt
+src/combination_builder.egg-info/top_level.txt

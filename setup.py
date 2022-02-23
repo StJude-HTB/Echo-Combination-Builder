@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="combination-builder",
-    version="0.0.3",
+    version="0.1.0",
     author="Duane Currier",
     author_email="duane.currier@stjude.org",
     description="Provides a framework for easily constructing work list files for creation of combinations of substances for high throughput screening",
